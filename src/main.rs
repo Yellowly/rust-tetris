@@ -157,7 +157,7 @@ impl Component for RootComponent {
                             {
                                 (0..4).map(|c| {
                                     html!{
-                                        if self.game.falling_piece.get_idx_arr(0).contains(&((c+r*4) as isize)){
+                                        if self.held_piece.is_some() && self.held_piece.unwrap().get_idx_arr(0).contains(&((c+r*4) as isize)){
                                             <span class="block"/>
                                         }else{
                                             <span class="empty-tile"/>
