@@ -1,3 +1,5 @@
+use std::{collections::VecDeque, io::BufRead};
+
 use yew::prelude::*;
 use web_sys::{HtmlInputElement, HtmlCanvasElement, TouchEvent, Element};
 use wasm_bindgen::{JsCast, JsValue};
@@ -8,6 +10,29 @@ use rand::Rng;
 fn main() {
     println!("Hello, world!");
     yew::start_app::<RootComponent>();
+}
+
+struct RootComponent{
+
+}
+impl Component for RootComponent{
+    type Message = ();
+
+    type Properties = ();
+
+    fn create(ctx: &Context<Self>) -> Self {
+        Self{}
+    }
+
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        html!{
+            <div class="root">
+                <h1>{"test"}</h1>
+                <hr/>
+                <GameDisplay/>
+            </div>
+        }
+    }
 }
 
 enum GameMsg {
@@ -24,26 +49,30 @@ enum GameMsg {
     None
 }
 
-struct RootComponent{
+struct GameDisplay{
     game: TetrisBoard,
     ticker_handle: Option<Timeout>,
     move_handle: (bool,Option<Timeout>),
     down_handle: Option<Timeout>,
     stick_handle: Option<Timeout>,
     level: u32,
+    score: u32,
+    lines_cleared: u32,
     stick_counter: u32,
     held_piece: Option<TetrisPieceType>,
     held_piece_switch_count: u32,
+    piece_queue: VecDeque<TetrisPieceType>,
     settings: Settings
 }
 
-impl Component for RootComponent {
+impl Component for GameDisplay {
     type Message = GameMsg;
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        RootComponent { game: TetrisBoard::make(10,20,TetrisPieceType::T), ticker_handle: None, move_handle: (true,None), 
-            down_handle: None, settings: Settings::default(), level: 1, stick_handle: None, stick_counter: 0, held_piece: None, held_piece_switch_count: 0}
+        GameDisplay { game: TetrisBoard::make(10,20,TetrisPieceType::get_random()), ticker_handle: None, move_handle: (true,None), 
+            down_handle: None, settings: Settings::default(), level: 1, stick_handle: None, stick_counter: 0, held_piece: None, held_piece_switch_count: 0,
+            piece_queue: VecDeque::from_iter(Randomizers::RandomGenerator.make_sequence(7).into_iter()), score: 0, lines_cleared: 0}
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -81,14 +110,29 @@ impl Component for RootComponent {
                 }
             }
             GameMsg::Down => {
-                self.game.move_down();
+                if self.game.move_down(){
+                    self.score+=1;
+                }
             }
             GameMsg::Drop => {
-                self.game.drop();
-                self.game.new_falling_piece(TetrisPieceType::from_int(rand::thread_rng().gen_range(0..7)));
+                self.score += self.game.drop()*2;
+                if !self.game.new_falling_piece(self.piece_queue.pop_front().unwrap_or(TetrisPieceType::I)){
+                    // reset game
+                    self.game = TetrisBoard::make(10,20,TetrisPieceType::get_random());
+                    self.ticker_handle=None;
+                    self.level = 1;
+                    self.score = 0;
+                    self.lines_cleared=0;
+                }
+                if self.piece_queue.len()<=self.settings.queue_display_len{ self.piece_queue.extend(self.settings.randomizer.make_sequence(self.settings.queue_display_len))}
+                self.piece_queue.push_back(TetrisPieceType::get_random());
                 let num_cleared: u32 = self.game.clear_lines();
+                self.score += [0,100,300,500,800][num_cleared as usize]*self.level;
+                self.lines_cleared+=num_cleared;
+                self.level=self.lines_cleared/10+1;
                 self.game.update_drop_loc();
                 self.stick_counter=0;
+                self.stick_handle=None;
                 self.held_piece_switch_count=0;
             }
             GameMsg::Tick => {
@@ -97,7 +141,7 @@ impl Component for RootComponent {
                     if self.stick_handle.is_none(){
                         self.stick_handle = Some({
                             let link = _ctx.link().clone();
-                            Timeout::new(self.get_tick_speed(), move || link.send_message(GameMsg::Drop))
+                            Timeout::new(self.get_tick_speed()*3, move || link.send_message(GameMsg::Drop))
                         }); 
                     }
                 }
@@ -146,35 +190,30 @@ impl Component for RootComponent {
         let link = ctx.link();
 
         html!{
-            <div class="root">
-                <h1>{"test"}</h1>
-                <button class="start-button" onclick={link.callback(|_| GameMsg::Tick)} onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(false), 38=>GameMsg::Rotate, 37=>GameMsg::Left(false), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
-                onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}/>
-                <div class="piece-display">
+            <div class="game" onclick={link.callback(|_| GameMsg::Tick)} tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(false), 38=>GameMsg::Rotate, 37=>GameMsg::Left(false), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
+            onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}>
+                // <h1>{"test"}</h1>
+                // <button class="start-button" onclick={link.callback(|_| GameMsg::Tick)} onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(false), 38=>GameMsg::Rotate, 37=>GameMsg::Left(false), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
+                // onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}/>
+                <div class="inline-block">
+                    {TetrisPieceType::view(&self.held_piece)}
+                    <p>{self.score.to_string()}</p>
+                </div>
+                <div class="inline-block">
+                    {self.game.view()}
+                </div>
+                <div class="inline-block">
                 {
-                    (0..4).rev().map(|r|{
-                        html!{
-                            {
-                                (0..4).map(|c| {
-                                    html!{
-                                        if self.held_piece.is_some() && self.held_piece.unwrap().get_idx_arr(0).contains(&((c+r*4) as isize)){
-                                            <span class="block"/>
-                                        }else{
-                                            <span class="empty-tile"/>
-                                        }
-                                    }
-                                }).collect::<Html>()
-                            }
-                        }
+                    (0..self.settings.queue_display_len).map(|v|{
+                        html!{TetrisPieceType::view(&Some(self.piece_queue[v].clone()))}
                     }).collect::<Html>()
                 }
                 </div>
-                {self.game.view()}
             </div>
         }
     }
 }
-impl RootComponent{
+impl GameDisplay{
     fn get_tick_speed(&self) -> u32{
         return ((0.8-((self.level-1) as f32)*0.007).powf((self.level-1) as f32)*1000_f32) as u32
     }
@@ -183,14 +222,39 @@ impl RootComponent{
 struct Settings{
     hold_time: u32,
     hold_move_interval: u32,
-    max_num_held_piece_switches: u32
+    max_num_held_piece_switches: u32,
+    queue_display_len: usize,
+    randomizer: Randomizers
 }
 impl Default for Settings{
     fn default() -> Settings{
-        Settings{hold_time: 180, hold_move_interval: 80, max_num_held_piece_switches: 1}
+        Settings{hold_time: 120, hold_move_interval: 60, max_num_held_piece_switches: 1, queue_display_len: 4, randomizer: Randomizers::RandomGenerator}
     }
 }
 
+enum Randomizers{
+    RandomGenerator,
+    Random
+}
+impl Randomizers{
+    fn make_sequence(&self, len: usize) -> Vec<TetrisPieceType>{
+        match &self{
+            Self::RandomGenerator => {
+                let mut temp = (0..((len/7+1)*7)).map(|i| TetrisPieceType::from_int((i%7) as i32)).collect::<Vec<TetrisPieceType>>();
+                for i in 0..temp.len(){
+                    let swap_idx = rand::thread_rng().gen_range(0..7);
+                    let tempt = temp[swap_idx];
+                    temp[swap_idx]=temp[i].clone();
+                    temp[i]=tempt;
+                }
+                temp
+            }
+            Self::Random => {
+                Vec::from_iter((0..len).map(|_| TetrisPieceType::get_random()).collect::<Vec<TetrisPieceType>>())
+            }
+        }
+    }
+}
 
 #[derive(Clone,Copy, PartialEq)]
 enum TetrisPieceType{
@@ -363,6 +427,35 @@ impl TetrisPieceType{
             _ => Self::T
         }
     }
+    fn get_random() -> Self{
+        TetrisPieceType::from_int(rand::thread_rng().gen_range(0..7))
+    }
+}
+
+impl TetrisPieceType{
+    fn view(from: &Option<Self>) -> Html{
+        html!{
+            <div class="piece-display">
+                {
+                    (0..4).rev().map(|r|{
+                        html!{
+                            {
+                                (0..4).map(|c| {
+                                    html!{
+                                        if from.is_some() && from.unwrap().get_idx_arr(0).contains(&((c+r*4) as isize)){
+                                            <span class="block"/>
+                                        }else{
+                                            <span class="empty-tile"/>
+                                        }
+                                    }
+                                }).collect::<Html>()
+                            }
+                        }
+                    }).collect::<Html>()
+                }
+            </div>
+        }
+    }
 }
 
 struct TetrisBoard{
@@ -377,7 +470,7 @@ struct TetrisBoard{
 impl TetrisBoard{
     fn make(width: usize, height: usize, first_falling_piece: TetrisPieceType) -> Self{
         let mut tiles = vec![false;width*(height+3)];
-        tiles[0]=true;
+        // tiles[0]=true;
         Self{tiles, dimentions: (width as isize, (height+3) as isize), falling_piece:first_falling_piece, 
         falling_loc: 193, falling_rot:0, drop_loc: 3}
     }
@@ -505,8 +598,9 @@ impl TetrisBoard{
         }
         return false 
     }
-    fn drop(&mut self){
-        while self.move_down(){};
+    fn drop(&mut self) -> u32{
+        let mut cells_dropped = 0;
+        while self.move_down(){cells_dropped+=1};
         for i in self.falling_piece.get_idx_arr(self.falling_rot){
             let loc: isize = self.falling_loc+i/4*self.dimentions.0+i%4;
             if loc>=0 && loc<self.dimentions.0*self.dimentions.1{
@@ -514,11 +608,14 @@ impl TetrisBoard{
             }
         }
         // self.new_falling_piece();
+        cells_dropped
     }
-    fn new_falling_piece(&mut self, new_piece: TetrisPieceType){
+    fn new_falling_piece(&mut self, new_piece: TetrisPieceType) -> bool{
         self.falling_piece=new_piece;
         self.falling_loc=193;
         self.falling_rot=0;
+        if self.check_overlap(){ self.falling_loc+=self.dimentions.0; }
+        !self.check_overlap()
     }
 }
 

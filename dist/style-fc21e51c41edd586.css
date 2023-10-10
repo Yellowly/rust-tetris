@@ -7,7 +7,7 @@ body {
 }
 
 p {
-    color: #fae5c8;
+    color: #a7a7a7;
 }
 
 h1 {
@@ -40,7 +40,7 @@ h1 {
 
 .board{
     width: calc(24px*10);
-    margin:auto;
+    /* margin:auto; */
     display:grid;
     grid-template-columns: 24px 24px 24px 24px 24px 24px 24px 24px 24px 24px;
     gap:0px;
@@ -48,14 +48,22 @@ h1 {
 
 .piece-display{
     width: calc(24px*4);
-    margin:auto;
+    /* margin:auto; */
     display:grid;
     grid-template-columns: 24px 24px 24px 24px;
     gap:0px;
-    position:absolute;
-    transform: translate(450px,0px);
+    position:relative;
+}
+.inline-block{
+    display:inline-block;
+    width:fit-content;
+    vertical-align:top;
+    margin:8px;
 }
 
-.root{
-    width:90vw;
+.game{
+    width: fit-content;
+    margin: auto;
+    display: inline-block;
+    outline:none;
 }
