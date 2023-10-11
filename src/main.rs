@@ -264,7 +264,7 @@ impl Component for GameDisplay {
             None => (0.0,0.0)
         };
         html!{
-            <div class="game" tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
+            <div class="game no-touch-move" tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
             onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}
             ontouchstart={link.callback(|t:TouchEvent| GameMsg::TouchStart(t))} ontouchmove={link.callback(|t| GameMsg::TouchMove(t))} ontouchend={link.callback(|t| GameMsg::TouchEnd(t))}
             onfocusin={link.callback(|_| GameMsg::Tick)} onfocusout={link.callback(|_| GameMsg::Unfocus)}>

@@ -7,7 +7,7 @@ body {
 }
 
 :root{
-    --block-dim: calc(100vh/30);
+    --block-dim: min(calc(100vh/30),calc(100vw/24));
 }
 
 hr{
@@ -16,6 +16,10 @@ hr{
 
 p {
     color: #a7a7a7;
+}
+
+.no-touch-move{
+    touch-action:none;
 }
 
 h1 {
