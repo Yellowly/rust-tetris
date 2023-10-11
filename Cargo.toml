@@ -22,4 +22,7 @@ features = [
   'Window',
   'DragEvent',
   'DataTransfer',
+  'TouchEvent',
+  'TouchList',
+  'Touch'
 ]

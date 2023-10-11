@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, io::BufRead};
 
 use yew::prelude::*;
-use web_sys::{HtmlInputElement, HtmlCanvasElement, TouchEvent, Element};
+use web_sys::{HtmlInputElement, HtmlCanvasElement, TouchEvent, TouchList, Touch, Element};
 use wasm_bindgen::{JsCast, JsValue};
 use gloo::{console::{self, Timer, dirxml}, timers::callback};
 use gloo::timers::callback::{Interval, Timeout};
@@ -36,8 +36,8 @@ impl Component for RootComponent{
 }
 
 enum GameMsg {
-    Left(bool),
-    Right(bool),
+    Left(InputTypes),
+    Right(InputTypes),
     Down,
     Drop,
     Tick,
@@ -46,7 +46,17 @@ enum GameMsg {
     CancelDown,
     CancelRight,
     CancelLeft,
+    TouchStart(TouchEvent),
+    TouchMove(TouchEvent),
+    TouchEnd(TouchEvent),
     None
+}
+
+#[derive(PartialEq)]
+enum InputTypes{
+    Tap,
+    Hold,
+    Touch
 }
 
 struct GameDisplay{
@@ -62,6 +72,9 @@ struct GameDisplay{
     held_piece: Option<TetrisPieceType>,
     held_piece_switch_count: u32,
     piece_queue: VecDeque<TetrisPieceType>,
+    touch_start_pos: (i32,i32),
+    touch_translation: i32,
+    touch_pos: (i32,i32),
     settings: Settings
 }
 
@@ -72,38 +85,44 @@ impl Component for GameDisplay {
     fn create(ctx: &Context<Self>) -> Self {
         GameDisplay { game: TetrisBoard::make(10,20,TetrisPieceType::get_random()), ticker_handle: None, move_handle: (true,None), 
             down_handle: None, settings: Settings::default(), level: 1, stick_handle: None, stick_counter: 0, held_piece: None, held_piece_switch_count: 0,
-            piece_queue: VecDeque::from_iter(Randomizers::RandomGenerator.make_sequence(7).into_iter()), score: 0, lines_cleared: 0}
+            piece_queue: VecDeque::from_iter(Randomizers::RandomGenerator.make_sequence(7).into_iter()), score: 0, lines_cleared: 0,
+            touch_start_pos: (0,0), touch_pos: (0,0), touch_translation: 0}
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            GameMsg::Left(forced) => {
-                if self.move_handle.1.is_none() || forced || self.move_handle.0 && self.move_handle.1.is_some(){
+            GameMsg::Left(t) => {
+                if self.move_handle.1.is_none() || t==InputTypes::Hold || self.move_handle.0 && self.move_handle.1.is_some(){
                     self.game.move_left();
-                    let handle = if forced{
-                        let link = _ctx.link().clone();
-                        Timeout::new(self.settings.hold_move_interval, move || link.send_message(GameMsg::Left(true)))
-                    } else {
-                        let link = _ctx.link().clone();
-                        Timeout::new(self.settings.hold_time, move || link.send_message(GameMsg::Left(true)))
-                    };
-                    self.move_handle = (false,Some(handle));
+                    if t!=InputTypes::Touch{
+                        let handle = if t==InputTypes::Tap{
+                            let link = _ctx.link().clone();
+                            Timeout::new(self.settings.hold_move_interval, move || link.send_message(GameMsg::Left(InputTypes::Hold)))
+                        } else {
+                            let link = _ctx.link().clone();
+                            Timeout::new(self.settings.hold_time, move || link.send_message(GameMsg::Left(InputTypes::Hold)))
+                        };
+                        self.move_handle = (false,Some(handle));
+                    }
                     if self.stick_counter<10{
                         self.stick_handle=None;
                     }
                 }
             }
-            GameMsg::Right(forced) => {
-                if self.move_handle.1.is_none() || forced || !self.move_handle.0 && self.move_handle.1.is_some(){
+            GameMsg::Right(t) => {
+                if self.move_handle.1.is_none() || t==InputTypes::Hold || !self.move_handle.0 && self.move_handle.1.is_some(){
                     self.game.move_right();
-                    let handle = if forced{
-                        let link = _ctx.link().clone();
-                        Timeout::new(self.settings.hold_move_interval, move || link.send_message(GameMsg::Right(true)))
-                    } else {
-                        let link = _ctx.link().clone();
-                        Timeout::new(self.settings.hold_time, move || link.send_message(GameMsg::Right(true)))
-                    };
-                    self.move_handle = (true,Some(handle));
+                    if t!=InputTypes::Touch{
+                        let handle = if t==InputTypes::Tap{
+                            let link = _ctx.link().clone();
+                            Timeout::new(self.settings.hold_move_interval, move || link.send_message(GameMsg::Right(InputTypes::Hold)))
+                        } else {
+                            let link = _ctx.link().clone();
+                            Timeout::new(self.settings.hold_time, move || link.send_message(GameMsg::Right(InputTypes::Hold)))
+                        };
+                        self.move_handle = (true,Some(handle));
+
+                    }
                     if self.stick_counter<10{
                         self.stick_handle=None;
                     }
@@ -180,6 +199,47 @@ impl Component for GameDisplay {
             GameMsg::CancelRight => {
                 if self.move_handle.0{self.move_handle=(true,None);}
             }
+            GameMsg::TouchStart(t) => {
+                let first_touch = t.touches().get(0).unwrap();
+                self.touch_start_pos=(first_touch.client_x(),first_touch.client_y());
+                self.touch_translation=self.touch_start_pos.0;
+            }
+            GameMsg::TouchMove(t) => {
+                let first_touch = t.touches().get(0).unwrap();
+                let pos=(first_touch.client_x(),first_touch.client_y());
+                if pos.0-self.touch_translation>=40{
+                    self.touch_translation=pos.0;
+                    let handle = {
+                        let link = _ctx.link().clone();
+                        Timeout::new(1, move || link.send_message(GameMsg::Right(InputTypes::Touch)))
+                    }.forget();
+                }else if pos.0-self.touch_translation<=-40{
+                    self.touch_translation=pos.0;
+                    let handle = {
+                        let link = _ctx.link().clone();
+                        Timeout::new(1, move || link.send_message(GameMsg::Left(InputTypes::Touch)))
+                    }.forget();
+                }
+                self.touch_pos=pos;
+            }
+            GameMsg::TouchEnd(t) => {
+                if self.touch_pos.1-self.touch_start_pos.1>=150{
+                    let handle = {
+                        let link = _ctx.link().clone();
+                        Timeout::new(0, move || link.send_message(GameMsg::Drop))
+                    }.forget();
+                }else if self.touch_start_pos.1-self.touch_pos.1>=150{
+                    let handle = {
+                        let link = _ctx.link().clone();
+                        Timeout::new(0, move || link.send_message(GameMsg::Hold))
+                    }.forget();
+                }else if (self.touch_pos.0-self.touch_start_pos.0).abs() < 40{
+                    let handle = {
+                        let link = _ctx.link().clone();
+                        Timeout::new(0, move || link.send_message(GameMsg::Rotate))
+                    }.forget();
+                }
+            }
             GameMsg::None => {
 
             }
@@ -190,14 +250,16 @@ impl Component for GameDisplay {
         let link = ctx.link();
 
         html!{
-            <div class="game" onclick={link.callback(|_| GameMsg::Tick)} tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(false), 38=>GameMsg::Rotate, 37=>GameMsg::Left(false), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
-            onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}>
+            <div class="game" onclick={link.callback(|_| GameMsg::Tick)} tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
+            onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}
+            ontouchstart={link.callback(|t:TouchEvent| GameMsg::TouchStart(t))} ontouchmove={link.callback(|t| GameMsg::TouchMove(t))} ontouchend={link.callback(|t| GameMsg::TouchEnd(t))}>
                 // <h1>{"test"}</h1>
                 // <button class="start-button" onclick={link.callback(|_| GameMsg::Tick)} onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(false), 38=>GameMsg::Rotate, 37=>GameMsg::Left(false), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
                 // onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}/>
                 <div class="inline-block">
                     {TetrisPieceType::view(&self.held_piece)}
                     <p>{self.score.to_string()}</p>
+                    <p>{format!("{},{}",self.touch_start_pos.0,self.touch_start_pos.1)}</p>
                 </div>
                 <div class="inline-block">
                     {self.game.view()}
