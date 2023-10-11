@@ -96,7 +96,7 @@ impl Component for GameDisplay {
                 if self.move_handle.1.is_none() || t==InputTypes::Hold || self.move_handle.0 && self.move_handle.1.is_some(){
                     self.game.move_left();
                     if t!=InputTypes::Touch{
-                        let handle = if t==InputTypes::Tap{
+                        let handle = if t==InputTypes::Hold{
                             let link = _ctx.link().clone();
                             Timeout::new(self.settings.hold_move_interval, move || link.send_message(GameMsg::Left(InputTypes::Hold)))
                         } else {
@@ -114,7 +114,7 @@ impl Component for GameDisplay {
                 if self.move_handle.1.is_none() || t==InputTypes::Hold || !self.move_handle.0 && self.move_handle.1.is_some(){
                     self.game.move_right();
                     if t!=InputTypes::Touch{
-                        let handle = if t==InputTypes::Tap{
+                        let handle = if t==InputTypes::Hold{
                             let link = _ctx.link().clone();
                             Timeout::new(self.settings.hold_move_interval, move || link.send_message(GameMsg::Right(InputTypes::Hold)))
                         } else {
@@ -308,7 +308,7 @@ struct Settings{
 }
 impl Default for Settings{
     fn default() -> Settings{
-        Settings{hold_time: 120, hold_move_interval: 60, max_num_held_piece_switches: 1, queue_display_len: 4, randomizer: Randomizers::RandomGenerator}
+        Settings{hold_time: 150, hold_move_interval: 60, max_num_held_piece_switches: 1, queue_display_len: 4, randomizer: Randomizers::RandomGenerator}
     }
 }
 
