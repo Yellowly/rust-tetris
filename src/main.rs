@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, io::BufRead};
 
 use yew::prelude::*;
-use web_sys::{HtmlInputElement, HtmlCanvasElement, TouchEvent, TouchList, Touch, Element};
+use web_sys::{HtmlInputElement, HtmlCanvasElement, TouchEvent, TouchList, Touch, Element, window};
 use wasm_bindgen::{JsCast, JsValue};
 use gloo::{console::{self, Timer, dirxml}, timers::callback};
 use gloo::timers::callback::{Interval, Timeout};
@@ -27,7 +27,7 @@ impl Component for RootComponent{
     fn view(&self, ctx: &Context<Self>) -> Html {
         html!{
             <div class="root">
-                <h1>{"test"}</h1>
+                <h1>{"Testris"}</h1>
                 <hr/>
                 <GameDisplay/>
             </div>
@@ -49,6 +49,7 @@ enum GameMsg {
     TouchStart(TouchEvent),
     TouchMove(TouchEvent),
     TouchEnd(TouchEvent),
+    Unfocus,
     None
 }
 
@@ -144,7 +145,7 @@ impl Component for GameDisplay {
                     self.lines_cleared=0;
                 }
                 if self.piece_queue.len()<=self.settings.queue_display_len{ self.piece_queue.extend(self.settings.randomizer.make_sequence(self.settings.queue_display_len))}
-                self.piece_queue.push_back(TetrisPieceType::get_random());
+                // self.piece_queue.push_back(TetrisPieceType::get_random());
                 let num_cleared: u32 = self.game.clear_lines();
                 self.score += [0,100,300,500,800][num_cleared as usize]*self.level;
                 self.lines_cleared+=num_cleared;
@@ -177,7 +178,7 @@ impl Component for GameDisplay {
                 }
                 let curr_falling = self.game.falling_piece;
                 if self.held_piece.is_none(){
-                    self.game.new_falling_piece(TetrisPieceType::from_int(rand::thread_rng().gen_range(0..7)));
+                    self.game.new_falling_piece(self.piece_queue.pop_front().unwrap_or(TetrisPieceType::I));
                 }else{
                     self.game.new_falling_piece(self.held_piece.unwrap());
                 }
@@ -202,6 +203,7 @@ impl Component for GameDisplay {
             GameMsg::TouchStart(t) => {
                 let first_touch = t.touches().get(0).unwrap();
                 self.touch_start_pos=(first_touch.client_x(),first_touch.client_y());
+                self.touch_pos=self.touch_start_pos;
                 self.touch_translation=self.touch_start_pos.0;
             }
             GameMsg::TouchMove(t) => {
@@ -220,15 +222,21 @@ impl Component for GameDisplay {
                         Timeout::new(1, move || link.send_message(GameMsg::Left(InputTypes::Touch)))
                     }.forget();
                 }
+                if pos.1-self.touch_start_pos.1>200{
+                    let handle = {
+                        let link = _ctx.link().clone();
+                        Timeout::new(1, move || link.send_message(GameMsg::Down))
+                    }.forget();
+                }
                 self.touch_pos=pos;
             }
             GameMsg::TouchEnd(t) => {
-                if self.touch_pos.1-self.touch_start_pos.1>=150{
+                if self.touch_pos.1-self.touch_start_pos.1>100{
                     let handle = {
                         let link = _ctx.link().clone();
                         Timeout::new(0, move || link.send_message(GameMsg::Drop))
                     }.forget();
-                }else if self.touch_start_pos.1-self.touch_pos.1>=150{
+                }else if self.touch_start_pos.1-self.touch_pos.1>100{
                     let handle = {
                         let link = _ctx.link().clone();
                         Timeout::new(0, move || link.send_message(GameMsg::Hold))
@@ -240,6 +248,9 @@ impl Component for GameDisplay {
                     }.forget();
                 }
             }
+            GameMsg::Unfocus => {
+                self.ticker_handle=None;
+            }
             GameMsg::None => {
 
             }
@@ -248,18 +259,25 @@ impl Component for GameDisplay {
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-
+        let dim = match window(){
+            Some(w) => (w.outer_width().unwrap().as_f64().unwrap(),w.outer_height().unwrap().as_f64().unwrap()),
+            None => (0.0,0.0)
+        };
         html!{
-            <div class="game" onclick={link.callback(|_| GameMsg::Tick)} tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
+            <div class="game" tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
             onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}
-            ontouchstart={link.callback(|t:TouchEvent| GameMsg::TouchStart(t))} ontouchmove={link.callback(|t| GameMsg::TouchMove(t))} ontouchend={link.callback(|t| GameMsg::TouchEnd(t))}>
+            ontouchstart={link.callback(|t:TouchEvent| GameMsg::TouchStart(t))} ontouchmove={link.callback(|t| GameMsg::TouchMove(t))} ontouchend={link.callback(|t| GameMsg::TouchEnd(t))}
+            onfocusin={link.callback(|_| GameMsg::Tick)} onfocusout={link.callback(|_| GameMsg::Unfocus)}>
                 // <h1>{"test"}</h1>
                 // <button class="start-button" onclick={link.callback(|_| GameMsg::Tick)} onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(false), 38=>GameMsg::Rotate, 37=>GameMsg::Left(false), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
                 // onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}/>
                 <div class="inline-block">
                     {TetrisPieceType::view(&self.held_piece)}
                     <p>{self.score.to_string()}</p>
+                    <p>{format!("level: {}",self.level)}</p>
                     <p>{format!("{},{}",self.touch_start_pos.0,self.touch_start_pos.1)}</p>
+                    <p>{format!("{}",self.piece_queue.len())}</p>
+                    <p>{format!("w{},h{}",dim.0,dim.1)}</p>
                 </div>
                 <div class="inline-block">
                     {self.game.view()}
@@ -302,9 +320,9 @@ impl Randomizers{
     fn make_sequence(&self, len: usize) -> Vec<TetrisPieceType>{
         match &self{
             Self::RandomGenerator => {
-                let mut temp = (0..((len/7+1)*7)).map(|i| TetrisPieceType::from_int((i%7) as i32)).collect::<Vec<TetrisPieceType>>();
+                let mut temp = (0..(((len-1)/7+1)*7)).map(|i| TetrisPieceType::from_int((i%7) as i32)).collect::<Vec<TetrisPieceType>>();
                 for i in 0..temp.len(){
-                    let swap_idx = rand::thread_rng().gen_range(0..7);
+                    let swap_idx = rand::thread_rng().gen_range(0..7)+(i/7)*7;
                     let tempt = temp[swap_idx];
                     temp[swap_idx]=temp[i].clone();
                     temp[i]=tempt;
@@ -534,7 +552,7 @@ impl TetrisBoard{
         let mut tiles = vec![false;width*(height+3)];
         // tiles[0]=true;
         Self{tiles, dimentions: (width as isize, (height+3) as isize), falling_piece:first_falling_piece, 
-        falling_loc: 193, falling_rot:0, drop_loc: 3}
+        falling_loc: 193, falling_rot:0, drop_loc: -7}
     }
     
     fn check_loc_for_falling_piece(&self, idx: isize) -> bool{

@@ -24,5 +24,6 @@ features = [
   'DataTransfer',
   'TouchEvent',
   'TouchList',
-  'Touch'
+  'Touch',
+  'Window'
 ]

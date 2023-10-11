@@ -10,12 +10,16 @@ body {
     --block-dim: calc(100vh/30);
 }
 
+hr{
+    border-color: #333;
+}
+
 p {
     color: #a7a7a7;
 }
 
 h1 {
-    color: #f1eeed;
+    color: #ccc;
     position: relative;
     min-height: 0px;
     display: inline-block;
