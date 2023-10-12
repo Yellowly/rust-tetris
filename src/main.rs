@@ -76,6 +76,8 @@ struct GameDisplay{
     touch_start_pos: (i32,i32),
     touch_translation: i32,
     touch_pos: (i32,i32),
+    touch_velocity: (i32,i32),
+    touch_can_rotate: bool,
     settings: Settings
 }
 
@@ -87,7 +89,7 @@ impl Component for GameDisplay {
         GameDisplay { game: TetrisBoard::make(10,20,TetrisPieceType::get_random()), ticker_handle: None, move_handle: (true,None), 
             down_handle: None, settings: Settings::default(), level: 1, stick_handle: None, stick_counter: 0, held_piece: None, held_piece_switch_count: 0,
             piece_queue: VecDeque::from_iter(Randomizers::RandomGenerator.make_sequence(7).into_iter()), score: 0, lines_cleared: 0,
-            touch_start_pos: (0,0), touch_pos: (0,0), touch_translation: 0}
+            touch_start_pos: (0,0), touch_pos: (0,0), touch_translation: 0, touch_velocity: (0,0), touch_can_rotate: true}
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -184,6 +186,8 @@ impl Component for GameDisplay {
                 }
                 self.game.update_drop_loc();
                 self.held_piece=Some(curr_falling);
+                self.stick_counter=0;
+                self.stick_handle=None;
             }
             GameMsg::Rotate => {
                 self.game.rotate_clockwise();
@@ -209,20 +213,23 @@ impl Component for GameDisplay {
             GameMsg::TouchMove(t) => {
                 let first_touch = t.touches().get(0).unwrap();
                 let pos=(first_touch.client_x(),first_touch.client_y());
-                if pos.0-self.touch_translation>=40{
+                if pos.0-self.touch_translation>=50{
                     self.touch_translation=pos.0;
+                    self.touch_can_rotate=false;
                     let handle = {
                         let link = _ctx.link().clone();
                         Timeout::new(1, move || link.send_message(GameMsg::Right(InputTypes::Touch)))
                     }.forget();
-                }else if pos.0-self.touch_translation<=-40{
+                }else if pos.0-self.touch_translation<=-50{
                     self.touch_translation=pos.0;
+                    self.touch_can_rotate=false;
                     let handle = {
                         let link = _ctx.link().clone();
                         Timeout::new(1, move || link.send_message(GameMsg::Left(InputTypes::Touch)))
                     }.forget();
                 }
                 if pos.1-self.touch_start_pos.1>200{
+                    self.touch_can_rotate=false;
                     let handle = {
                         let link = _ctx.link().clone();
                         Timeout::new(1, move || link.send_message(GameMsg::Down))
@@ -241,12 +248,13 @@ impl Component for GameDisplay {
                         let link = _ctx.link().clone();
                         Timeout::new(0, move || link.send_message(GameMsg::Hold))
                     }.forget();
-                }else if (self.touch_pos.0-self.touch_start_pos.0).abs() < 40{
+                }else if self.touch_can_rotate && (self.touch_pos.0-self.touch_start_pos.0).abs() < 10{
                     let handle = {
                         let link = _ctx.link().clone();
                         Timeout::new(0, move || link.send_message(GameMsg::Rotate))
                     }.forget();
                 }
+                self.touch_can_rotate=true;
             }
             GameMsg::Unfocus => {
                 self.ticker_handle=None;
@@ -523,9 +531,9 @@ impl TetrisPieceType{
                                 (0..4).map(|c| {
                                     html!{
                                         if from.is_some() && from.unwrap().get_idx_arr(0).contains(&((c+r*4) as isize)){
-                                            <span class="block"/>
+                                            <span class="sidebar-tile filled"/>
                                         }else{
-                                            <span class="empty-tile"/>
+                                            <span class="sidebar-tile empty"/>
                                         }
                                     }
                                 }).collect::<Html>()
@@ -716,13 +724,13 @@ impl TetrisBoard{
                                 (0..self.dimentions.0).map(|c| {
                                     html!{
                                         if self.tiles[(c+r*self.dimentions.0) as usize]{
-                                            <span class="block"/>
+                                            <span class="tile filled"/>
                                         }else if self.check_loc_for_falling_piece(c+r*self.dimentions.0){
-                                            <span class="block"/>
+                                            <span class="tile filled"/>
                                         }else if self.check_drop_loc(c+r*self.dimentions.0){
-                                            <span class="block translucent"/>
+                                            <span class="tile filled translucent"/>
                                         }else{
-                                            <span class="empty-tile"/>
+                                            <span class="tile empty"/>
                                         }
                                     }
                                 }).collect::<Html>()

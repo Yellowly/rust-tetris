@@ -4,10 +4,12 @@ body {
     padding: 0;
     text-align: center;
     background-color: #2c2a29;
+    touch-action:none;
 }
 
 :root{
-    --block-dim: min(calc(100vh/30),calc(100vw/24));
+    --block-dim: min(calc(100vh/30),calc(100vw/20));
+    --side-block-dim: min(var(--block-dim),calc(100vw/28));
 }
 
 hr{
@@ -29,25 +31,32 @@ h1 {
     display: inline-block;
 }
 
-.block{
+.tile{
     width: var(--block-dim);
     height: var(--block-dim);
-    background-color:grey;
     display:inline-grid;
-    border: 2px solid darkgray;
     box-sizing: border-box;
 }
+
+.sidebar-tile{
+    width: var(--side-block-dim);
+    height: var(--side-block-dim);
+    display:inline-grid;
+    box-sizing: border-box;
+}
+
+.filled{
+    background-color:grey;
+    border: 2px solid darkgray;
+}
+
 .translucent{
     opacity: 0.5;
 }
 
-.empty-tile{
-    width: var(--block-dim);
-    height: var(--block-dim);
+.empty{
     background-color:#333;
-    display:inline-grid;
     border: 2px solid #222;
-    box-sizing: border-box;
 }
 
 .board{
@@ -60,12 +69,12 @@ h1 {
 }
 
 .piece-display{
-    width: calc(var(--block-dim)*4);
+    width: calc(var(--side-block-dim)*4);
     /* margin:auto; */
     display:grid;
-    grid-template-columns: var(--block-dim) var(--block-dim) var(--block-dim) var(--block-dim);
+    grid-template-columns: var(--side-block-dim) var(--side-block-dim) var(--side-block-dim) var(--side-block-dim);
     gap:0px;
-    position:relative;
+    /* position:relative; */
 }
 .inline-block{
     display:inline-block;
