@@ -15,15 +15,13 @@ getrandom = { version = "0.2", features = ["js"] }
 [dependencies.web-sys]
 version = "0.3.57"
 features = [
-  'CanvasRenderingContext2d',
   'Document',
   'Element',
-  'HtmlCanvasElement',
   'Window',
-  'DragEvent',
-  'DataTransfer',
   'TouchEvent',
   'TouchList',
   'Touch',
-  'Window'
+  'Window',
+  'Event',
+  'HtmlDocument'
 ]

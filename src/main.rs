@@ -1,9 +1,9 @@
-use std::{collections::VecDeque, io::BufRead};
+use std::{collections::VecDeque, io::BufRead, fmt::{Display, Formatter, Result}, clone};
 
 use yew::prelude::*;
-use web_sys::{HtmlInputElement, HtmlCanvasElement, TouchEvent, TouchList, Touch, Element, window};
-use wasm_bindgen::{JsCast, JsValue};
-use gloo::{console::{self, Timer, dirxml}, timers::callback};
+use web_sys::{HtmlInputElement, TouchEvent, TouchList, Touch, Element, Event, window, HtmlDocument};
+use wasm_bindgen::{JsCast, JsValue, UnwrapThrowExt};
+use gloo::{console::{self, Timer, dirxml}, timers::callback, events::EventListener, utils::document};
 use gloo::timers::callback::{Interval, Timeout};
 use rand::Rng;
 
@@ -12,27 +12,152 @@ fn main() {
     yew::start_app::<RootComponent>();
 }
 
-struct RootComponent{
+enum SettingsMsg{
+    ToggleSettingsWindow,
+    ChangeColor(String, usize),
+    ChangeSettings(String, u32),
+    SaveCookies,
+}
 
+struct RootComponent{
+    game_settings: Settings,
+    displaying_window: bool,
+    colors: Vec<String>,
+    cookies: String
 }
 impl Component for RootComponent{
-    type Message = ();
+    type Message = SettingsMsg;
 
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        Self{}
+        let get_cookies = document().unchecked_into::<HtmlDocument>().cookie().unwrap_or(String::from("None"));
+        let mut colors: Vec<String> = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#00ffff"),String::from("#ffff00")
+        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00")];
+        let mut game_settings = Settings::default();
+        if get_cookies!="None"{
+            // colors = Vec::new();
+            for v in get_cookies.split("; "){
+                match v.split_once('='){
+                    Some((name, value)) => {
+                        if name.starts_with("saved_color_"){
+                            colors[name.split_at(12).1.parse::<usize>().unwrap_or(0)] = String::from(value);
+                        }else{
+                            match name{
+                                "hold_time" => game_settings.hold_time=value.parse::<u32>().unwrap_or(game_settings.hold_time),
+                                "hold_move_interval" => game_settings.hold_move_interval=value.parse::<u32>().unwrap_or(game_settings.hold_move_interval),
+                                "max_switches" => game_settings.max_num_held_piece_switches=value.parse::<u32>().unwrap_or(1),
+                                _ => {}
+                            }
+                        }
+                    }
+                    None => {
+                        // this cookie does not exist. Error? idk
+                    }
+                }
+            }
+        }
+        Self{game_settings: Settings::default(), displaying_window: false, colors, cookies: get_cookies}
+    }
+
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg{
+            SettingsMsg::ToggleSettingsWindow => {
+                self.displaying_window = !self.displaying_window;
+            }
+            SettingsMsg::ChangeColor(color, id) => {
+                self.colors[id]=color;
+            }
+            SettingsMsg::ChangeSettings(value, id) => {
+                match id{
+                    0 => {
+                        self.game_settings.hold_time=value.parse::<u32>().unwrap_or(self.game_settings.hold_time);
+                    }
+                    1 => {
+                        self.game_settings.hold_move_interval=value.parse::<u32>().unwrap_or(self.game_settings.hold_move_interval);
+                    }
+                    2 => {
+                        self.game_settings.max_num_held_piece_switches=value.parse::<u32>().unwrap_or(self.game_settings.max_num_held_piece_switches);
+                    }
+                    3 => {
+                        self.game_settings.queue_display_len=value.parse::<usize>().unwrap_or(self.game_settings.queue_display_len);
+                    }
+                    4 => {
+                        self.game_settings.randomizer=Randomizers::RandomGenerator;
+                    }
+                    _ => {
+
+                    }
+                }
+            }
+            SettingsMsg::SaveCookies => {
+                let doc = document().unchecked_into::<HtmlDocument>();
+                for i in 0..self.colors.len(){
+                    let _ = doc.set_cookie(&format!("saved_color_{}={}",i,self.colors[i]));
+                }
+
+            }
+        }
+        true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let doc = document().unchecked_into::<HtmlDocument>();
+        let r = doc.query_selector("html, body").unwrap().unwrap();
+        let _ = r.set_attribute("style", &format!("background-color: {};",self.colors[0]));
+        let link = ctx.link();
         html!{
-            <div class="root">
+            <div class="root" style={format!("--bg-color: {}; --board-bg: {}; --board-outline: {}; --Icolor: {}; --Ocolor: {}; --Tcolor:{}; --Lcolor: {}; --Jcolor: {};
+            --Scolor: {}; --Zcolor: {};",self.colors[0],self.colors[1], self.colors[2],self.colors[3],self.colors[4],self.colors[5],self.colors[6],
+            self.colors[7],self.colors[8],self.colors[9])}>
                 <h1>{"Testris"}</h1>
+                <p>{self.colors[0].clone()}</p>
+                <button class="settings" onclick={link.callback(|_| SettingsMsg::ToggleSettingsWindow)}>
+                {"settings"}
+                </button>
                 <hr/>
-                <GameDisplay/>
+                if self.displaying_window{
+                    <div class="settings-window">
+                    <input type="color" value={self.colors[0].clone()} onchange={Self::get_color_callback(link,0)}/>
+                    <input type="color" value={self.colors[1].clone()} onchange={Self::get_color_callback(link,1)}/>
+                    <input type="color" value={self.colors[2].clone()} onchange={Self::get_color_callback(link,2)}/>
+                    <input type="color" value={self.colors[3].clone()} onchange={Self::get_color_callback(link,3)}/>
+                    <input type="color" value={self.colors[4].clone()} onchange={Self::get_color_callback(link,4)}/>
+                    <input type="color" value={self.colors[5].clone()} onchange={Self::get_color_callback(link,5)}/>
+                    <input type="color" value={self.colors[6].clone()} onchange={Self::get_color_callback(link,6)}/>
+                    <input type="color" value={self.colors[7].clone()} onchange={Self::get_color_callback(link,7)}/>
+                    <input type="color" value={self.colors[8].clone()} onchange={Self::get_color_callback(link,8)}/>
+                    <input type="color" value={self.colors[9].clone()} onchange={Self::get_color_callback(link,9)}/>
+                    <input type="number" value={self.game_settings.hold_time.to_string()} onchange={Self::get_settings_callback(link,0)}/>
+                    <input type="number" value={self.game_settings.hold_move_interval.to_string()} onchange={Self::get_settings_callback(link,1)}/>
+                    <input type="number" value={self.game_settings.max_num_held_piece_switches.to_string()} onchange={Self::get_settings_callback(link,2)}/>
+                    <input type="number" value={self.game_settings.queue_display_len.to_string()} onchange={Self::get_settings_callback(link,3)}/>
+                    <button onclick={link.callback(|_| SettingsMsg::SaveCookies)}>
+                    {"save"}
+                    </button>
+                    <p>{self.cookies.clone()}</p>
+                    </div>
+                }
+                // <div class="notouch"></div>
+                else{
+                <GameDisplay settings={self.game_settings.clone()}/>
+                }
             </div>
         }
     }
+}
+impl RootComponent{
+    fn get_color_callback(link: &yew::html::Scope<Self>, val: usize) -> yew::Callback<Event>{
+        return {link.callback(move |e: Event| {let input: HtmlInputElement = e.target_unchecked_into(); SettingsMsg::ChangeColor(input.value().parse::<String>().unwrap(),val)})}
+    }
+    fn get_settings_callback(link: &yew::html::Scope<Self>, val: u32) -> yew::Callback<Event>{
+        return {link.callback(move |e: Event| {let input: HtmlInputElement = e.target_unchecked_into(); SettingsMsg::ChangeSettings(input.value().parse::<String>().unwrap(),val)})}
+    }
+}
+
+#[derive(Properties,PartialEq, Clone)]
+struct GameProps{
+    settings: Settings
 }
 
 enum GameMsg {
@@ -83,12 +208,14 @@ struct GameDisplay{
 
 impl Component for GameDisplay {
     type Message = GameMsg;
-    type Properties = ();
+    type Properties = GameProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        GameDisplay { game: TetrisBoard::make(10,20,TetrisPieceType::get_random()), ticker_handle: None, move_handle: (true,None), 
-            down_handle: None, settings: Settings::default(), level: 1, stick_handle: None, stick_counter: 0, held_piece: None, held_piece_switch_count: 0,
-            piece_queue: VecDeque::from_iter(Randomizers::RandomGenerator.make_sequence(7).into_iter()), score: 0, lines_cleared: 0,
+        let mut piece_queue: VecDeque<TetrisPieceType> = VecDeque::from_iter(ctx.props().settings.randomizer.make_sequence(7).into_iter());
+        let first_piece = piece_queue.pop_front().unwrap_or(TetrisPieceType::I);
+        GameDisplay { game: TetrisBoard::make(10,20,first_piece), ticker_handle: None, move_handle: (true,None), 
+            down_handle: None, settings: ctx.props().settings.clone(), level: 1, stick_handle: None, stick_counter: 0, held_piece: None, held_piece_switch_count: 0,
+            piece_queue, score: 0, lines_cleared: 0,
             touch_start_pos: (0,0), touch_pos: (0,0), touch_translation: 0, touch_velocity: (0,0), touch_can_rotate: true}
     }
 
@@ -145,6 +272,7 @@ impl Component for GameDisplay {
                     self.level = 1;
                     self.score = 0;
                     self.lines_cleared=0;
+                    self.held_piece=None;
                 }
                 if self.piece_queue.len()<=self.settings.queue_display_len{ self.piece_queue.extend(self.settings.randomizer.make_sequence(self.settings.queue_display_len))}
                 // self.piece_queue.push_back(TetrisPieceType::get_random());
@@ -205,54 +333,71 @@ impl Component for GameDisplay {
                 if self.move_handle.0{self.move_handle=(true,None);}
             }
             GameMsg::TouchStart(t) => {
+                //t.prevent_default();
+                _ctx.link().send_message(GameMsg::Tick);
+                if self.ticker_handle.is_none(){
+                    _ctx.link().send_message(GameMsg::Tick);
+                    // {
+                    //     let link = _ctx.link().clone();
+                    //     Timeout::new(0, move || link.send_message(GameMsg::Tick))
+                    // }.forget();
+                }
                 let first_touch = t.touches().get(0).unwrap();
                 self.touch_start_pos=(first_touch.client_x(),first_touch.client_y());
                 self.touch_pos=self.touch_start_pos;
                 self.touch_translation=self.touch_start_pos.0;
             }
             GameMsg::TouchMove(t) => {
+                //t.prevent_default();
                 let first_touch = t.touches().get(0).unwrap();
                 let pos=(first_touch.client_x(),first_touch.client_y());
-                if pos.0-self.touch_translation>=50{
+                if pos.0-self.touch_translation>=25 && (pos.1-self.touch_start_pos.1).abs()<50{
                     self.touch_translation=pos.0;
                     self.touch_can_rotate=false;
-                    let handle = {
-                        let link = _ctx.link().clone();
-                        Timeout::new(1, move || link.send_message(GameMsg::Right(InputTypes::Touch)))
-                    }.forget();
-                }else if pos.0-self.touch_translation<=-50{
+                    _ctx.link().send_message(GameMsg::Right(InputTypes::Touch));
+                    // let handle = {
+                    //     let link = _ctx.link().clone();
+                    //     Timeout::new(0, move || link.send_message(GameMsg::Right(InputTypes::Touch)))
+                    // }.forget();
+                }else if pos.0-self.touch_translation<=-25 && (pos.1-self.touch_start_pos.1).abs()<50{
                     self.touch_translation=pos.0;
                     self.touch_can_rotate=false;
-                    let handle = {
-                        let link = _ctx.link().clone();
-                        Timeout::new(1, move || link.send_message(GameMsg::Left(InputTypes::Touch)))
-                    }.forget();
+                    _ctx.link().send_message(GameMsg::Left(InputTypes::Touch));
+                    // let handle = {
+                    //     let link = _ctx.link().clone();
+                    //     Timeout::new(0, move || link.send_message(GameMsg::Left(InputTypes::Touch)))
+                    // }.forget();
                 }
-                if pos.1-self.touch_start_pos.1>200{
+                if pos.1-self.touch_start_pos.1>80{
                     self.touch_can_rotate=false;
-                    let handle = {
-                        let link = _ctx.link().clone();
-                        Timeout::new(1, move || link.send_message(GameMsg::Down))
-                    }.forget();
+                    _ctx.link().send_message(GameMsg::Down);
+                    // let handle = {
+                    //     let link = _ctx.link().clone();
+                    //     Timeout::new(0, move || link.send_message(GameMsg::Down))
+                    // }.forget();
                 }
                 self.touch_pos=pos;
             }
             GameMsg::TouchEnd(t) => {
-                if self.touch_pos.1-self.touch_start_pos.1>100{
-                    let handle = {
-                        let link = _ctx.link().clone();
-                        Timeout::new(0, move || link.send_message(GameMsg::Drop))
-                    }.forget();
-                }else if self.touch_start_pos.1-self.touch_pos.1>100{
-                    let handle = {
-                        let link = _ctx.link().clone();
-                        Timeout::new(0, move || link.send_message(GameMsg::Hold))
-                    }.forget();
-                }else if self.touch_can_rotate && (self.touch_pos.0-self.touch_start_pos.0).abs() < 10{
-                    let handle = {
-                        let link = _ctx.link().clone();
-                        Timeout::new(0, move || link.send_message(GameMsg::Rotate))
-                    }.forget();
+                t.prevent_default();
+                if self.touch_pos.1-self.touch_start_pos.1>40{
+                    _ctx.link().send_message(GameMsg::Drop);
+                    // let handle = {
+                    //     let link = _ctx.link().clone();
+                    //     Timeout::new(0, move || link.send_message(GameMsg::Drop))
+                    // }.forget();
+                }else if self.touch_start_pos.1-self.touch_pos.1>40{
+                    _ctx.link().send_message(GameMsg::Hold);
+                    // let handle = {
+                    //     let link = _ctx.link().clone();
+                    //     Timeout::new(0, move || link.send_message(GameMsg::Hold))
+                    // }.forget();
+                }else if self.touch_can_rotate && (self.touch_pos.0-self.touch_start_pos.0).abs() < 5{
+                    _ctx.link().send_message(GameMsg::Rotate);
+                    // let handle = {
+                    //     let link = _ctx.link().clone();
+                    //     Timeout::new(0, move || link.send_message(GameMsg::Rotate))
+                    // }.forget();
                 }
                 self.touch_can_rotate=true;
             }
@@ -276,16 +421,27 @@ impl Component for GameDisplay {
             onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}
             ontouchstart={link.callback(|t:TouchEvent| GameMsg::TouchStart(t))} ontouchmove={link.callback(|t| GameMsg::TouchMove(t))} ontouchend={link.callback(|t| GameMsg::TouchEnd(t))}
             onfocusin={link.callback(|_| GameMsg::Tick)} onfocusout={link.callback(|_| GameMsg::Unfocus)}>
+
+                // <div class="notouch" tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
+                // onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}
+                // ontouchstart={link.callback(|t:TouchEvent| GameMsg::TouchStart(t))} ontouchmove={link.callback(|t| GameMsg::TouchMove(t))} ontouchend={link.callback(|t| GameMsg::TouchEnd(t))}></div>
                 // <h1>{"test"}</h1>
                 // <button class="start-button" onclick={link.callback(|_| GameMsg::Tick)} onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(false), 38=>GameMsg::Rotate, 37=>GameMsg::Left(false), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
                 // onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}/>
                 <div class="inline-block">
                     {TetrisPieceType::view(&self.held_piece)}
+                    <div class="sidebar-num-display">
+                    <h1>{"Score"}</h1>
                     <p>{self.score.to_string()}</p>
-                    <p>{format!("level: {}",self.level)}</p>
-                    <p>{format!("{},{}",self.touch_start_pos.0,self.touch_start_pos.1)}</p>
-                    <p>{format!("{}",self.piece_queue.len())}</p>
-                    <p>{format!("w{},h{}",dim.0,dim.1)}</p>
+                    </div>
+                    <div class="sidebar-num-display">
+                    <h1>{"Level"}</h1>
+                    <p>{self.level.to_string()}</p>
+                    </div>
+                    // <p>{format!("start: {},{}",self.touch_start_pos.0,self.touch_start_pos.1)}</p>
+                    // <p>{format!("curr: {},{}",self.touch_pos.0,self.touch_pos.1)}</p>
+                    // <p>{format!("{}",self.piece_queue.len())}</p>
+                    // <p>{format!("w{},h{}",dim.0,dim.1)}</p>
                 </div>
                 <div class="inline-block">
                     {self.game.view()}
@@ -307,6 +463,7 @@ impl GameDisplay{
     }
 }
 
+#[derive(PartialEq, Clone)]
 struct Settings{
     hold_time: u32,
     hold_move_interval: u32,
@@ -320,6 +477,7 @@ impl Default for Settings{
     }
 }
 
+#[derive(PartialEq, Clone)]
 enum Randomizers{
     RandomGenerator,
     Random
@@ -400,39 +558,22 @@ impl TetrisPieceType{
         match rot%4{
             2 => match &self{
                 Self::I => (0,4),
-                Self::L =>  (0,3),
-                Self::J => (0,3),
+                Self::L|Self::J|Self::Z|Self::T|Self::S =>  (0,3),
                 Self::O => (1,3),
-                Self::Z => (0,3),
-                Self::T => (0,3),
-                Self::S => (0,3),
             }
             1 => match &self{
                 Self::I => (2,3),
-                Self::L =>  (1,3),
-                Self::J => (1,3),
-                Self::O => (1,3),
-                Self::S => (1,3),
-                Self::T => (1,3),
-                Self::Z => (1,3),
+                Self::L|Self::J|Self::O|Self::S|Self::T|Self::Z =>  (1,3),
             }
             0 => match &self{
                 Self::I => (0,4),
-                Self::L =>  (0,3),
-                Self::J => (0,3),
+                Self::L|Self::J|Self::S|Self::T|Self::Z =>  (0,3),
                 Self::O => (1,3),
-                Self::S => (0,3),
-                Self::T => (0,3),
-                Self::Z => (0,3),
             }
             3 => match &self{
                 Self::I => (1,2),
-                Self::L =>  (0,2),
-                Self::J => (0,2),
+                Self::L|Self::J|Self::S|Self::T|Self::Z =>  (0,2),
                 Self::O => (1,3),
-                Self::S => (0,2),
-                Self::T => (0,2),
-                Self::Z => (0,2),
             }
             _ => (0,0)
         }
@@ -441,39 +582,22 @@ impl TetrisPieceType{
         match rot%4{
             1 => match &self{
                 Self::I => (0,4),
-                Self::L =>  (0,3),
-                Self::J => (0,3),
+                Self::L|Self::J|Self::S|Self::T|Self::Z =>  (0,3),
                 Self::O => (0,2),
-                Self::Z => (0,3),
-                Self::T => (0,3),
-                Self::S => (0,3),
             }
             0 => match &self{
                 Self::I => (2,3),
-                Self::L =>  (1,3),
-                Self::J => (1,3),
+                Self::L|Self::J|Self::S|Self::T|Self::Z =>  (1,3),
                 Self::O => (0,2),
-                Self::S => (1,3),
-                Self::T => (1,3),
-                Self::Z => (1,3),
             }
             3 => match &self{
                 Self::I => (0,4),
-                Self::L =>  (0,3),
-                Self::J => (0,3),
+                Self::L|Self::J|Self::S|Self::T|Self::Z =>  (0,3),
                 Self::O => (0,2),
-                Self::S => (0,3),
-                Self::T => (0,3),
-                Self::Z => (0,3),
             }
             2 => match &self{
                 Self::I => (1,2),
-                Self::L =>  (0,2),
-                Self::J => (0,2),
-                Self::O => (0,2),
-                Self::S => (0,2),
-                Self::T => (0,2),
-                Self::Z => (0,2),
+                Self::L|Self::J|Self::S|Self::T|Self::Z|Self::O =>  (0,2),
             }
             _ => (0,0)
         }
@@ -531,7 +655,7 @@ impl TetrisPieceType{
                                 (0..4).map(|c| {
                                     html!{
                                         if from.is_some() && from.unwrap().get_idx_arr(0).contains(&((c+r*4) as isize)){
-                                            <span class="sidebar-tile filled"/>
+                                            <span class={format!("sidebar-tile filled {}-color",from.unwrap())}/>
                                         }else{
                                             <span class="sidebar-tile empty"/>
                                         }
@@ -545,9 +669,22 @@ impl TetrisPieceType{
         }
     }
 }
+impl Display for TetrisPieceType{
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f,"{}",String::from(match self{
+            Self::I => "I",
+            Self::J => "J",
+            Self::L => "L",
+            Self::O => "O",
+            Self::S => "S",
+            Self::T => "T",
+            Self::Z => "Z"
+        }))
+    }
+}
 
 struct TetrisBoard{
-    tiles: Vec<bool>,
+    tiles: Vec<Option<TetrisPieceType>>,
     dimentions: (isize, isize),
     falling_piece: TetrisPieceType,
     falling_loc: isize,
@@ -557,7 +694,7 @@ struct TetrisBoard{
 
 impl TetrisBoard{
     fn make(width: usize, height: usize, first_falling_piece: TetrisPieceType) -> Self{
-        let mut tiles = vec![false;width*(height+3)];
+        let mut tiles = vec![None;width*(height+3)];
         // tiles[0]=true;
         Self{tiles, dimentions: (width as isize, (height+3) as isize), falling_piece:first_falling_piece, 
         falling_loc: 193, falling_rot:0, drop_loc: -7}
@@ -627,14 +764,14 @@ impl TetrisBoard{
         for r in 0..self.dimentions.1{
             let mut filled: bool = true;
             for c in 0..self.dimentions.0{
-                if self.tiles[(r*self.dimentions.0+c) as usize] == false{
+                if self.tiles[(r*self.dimentions.0+c) as usize].is_none(){
                     filled=false;
                 }
             }
             if filled{
                 line_counter+=1;
                 for c in 0..self.dimentions.0{
-                    self.tiles[(r*self.dimentions.0+c) as usize]=false;
+                    self.tiles[(r*self.dimentions.0+c) as usize]=None;
                 }
             }else{
                 for c in 0..self.dimentions.0{
@@ -680,7 +817,7 @@ impl TetrisBoard{
     fn check_overlap(&self) -> bool{
         for i in self.falling_piece.get_idx_arr(self.falling_rot){
             let loc: isize = self.falling_loc+i/4*self.dimentions.0+i%4;
-            if loc>=0 && loc<self.dimentions.0*self.dimentions.1 && self.tiles[loc as usize]==true{
+            if loc>=0 && loc<self.dimentions.0*self.dimentions.1 && self.tiles[loc as usize].is_some(){
                 return true
             }
         }
@@ -692,7 +829,7 @@ impl TetrisBoard{
         for i in self.falling_piece.get_idx_arr(self.falling_rot){
             let loc: isize = self.falling_loc+i/4*self.dimentions.0+i%4;
             if loc>=0 && loc<self.dimentions.0*self.dimentions.1{
-                self.tiles[loc as usize]=true;
+                self.tiles[loc as usize]=Some(self.falling_piece);
             }
         }
         // self.new_falling_piece();
@@ -723,12 +860,12 @@ impl TetrisBoard{
                             {
                                 (0..self.dimentions.0).map(|c| {
                                     html!{
-                                        if self.tiles[(c+r*self.dimentions.0) as usize]{
-                                            <span class="tile filled"/>
+                                        if self.tiles[(c+r*self.dimentions.0) as usize].is_some(){
+                                            <span class={format!("tile filled {}-color",self.tiles[(c+r*self.dimentions.0) as usize].unwrap())}/>
                                         }else if self.check_loc_for_falling_piece(c+r*self.dimentions.0){
-                                            <span class="tile filled"/>
+                                            <span class={format!("tile filled {}-color",self.falling_piece)}/>
                                         }else if self.check_drop_loc(c+r*self.dimentions.0){
-                                            <span class="tile filled translucent"/>
+                                            <span class={format!("tile outline {}-color",self.falling_piece)}/>
                                         }else{
                                             <span class="tile empty"/>
                                         }
