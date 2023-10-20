@@ -34,7 +34,7 @@ impl Component for RootComponent{
     fn create(ctx: &Context<Self>) -> Self {
         let get_cookies = document().unchecked_into::<HtmlDocument>().cookie().unwrap_or(String::from("None"));
         let mut colors: Vec<String> = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00")];
+        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70")];
         let mut game_settings = Settings::default();
         if get_cookies!="None"{
             // colors = Vec::new();
@@ -104,12 +104,12 @@ impl Component for RootComponent{
                 match theme_id {
                     1 => {
                         self.colors = vec![String::from("#2c2a29"),String::from("#353231"),String::from("#222120"),String::from("#cfb24a"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00")];
+                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70")];
                         self.game_settings = Settings::default();
                     }
                     _ => {
                         self.colors = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00")];
+                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70")];
                         self.game_settings = Settings::default();
                     }
                 }
@@ -137,28 +137,104 @@ impl Component for RootComponent{
         let link = ctx.link();
         html!{
             <div class="root" style={format!("--bg-color: {}; --board-bg: {}; --board-outline: {}; --text-color: {}; --accent-target: {}; --Icolor: {}; --Ocolor: {}; --Tcolor:{}; --Lcolor: {}; --Jcolor: {};
-            --Scolor: {}; --Zcolor: {};",self.colors[0],self.colors[1], self.colors[2],self.colors[3],self.colors[4],self.colors[5],self.colors[6],
-            self.colors[7],self.colors[8],self.colors[9],self.colors[10],self.colors[11])}>
+            --Scolor: {}; --Zcolor: {}; --outline-opacity: {}%;",self.colors[0],self.colors[1], self.colors[2],self.colors[3],self.colors[4],self.colors[5],self.colors[6],
+            self.colors[7],self.colors[8],self.colors[9],self.colors[10],self.colors[11],self.colors[12])}>
                 <h1>{"Testris"}</h1>
-                <p>{self.colors[0].clone()}</p>
+                // <p>{self.colors[0].clone()}</p>
                 <button class="settings" onclick={link.callback(|_| SettingsMsg::ToggleSettingsWindow)}>
                 {"settings"}
                 </button>
                 <hr/>
                 if self.displaying_window{
                     <div class="settings-window">
-                    <input type="color" value={self.colors[0].clone()} onchange={Self::get_color_callback(link,0)}/>
-                    <input type="color" value={self.colors[1].clone()} onchange={Self::get_color_callback(link,1)}/>
-                    <input type="color" value={self.colors[2].clone()} onchange={Self::get_color_callback(link,2)}/>
-                    <input type="color" value={self.colors[3].clone()} onchange={Self::get_color_callback(link,3)}/>
-                    <input type="color" value={self.colors[4].clone()} onchange={Self::get_color_callback(link,4)}/>
-                    <input type="color" value={self.colors[5].clone()} onchange={Self::get_color_callback(link,5)}/>
-                    <input type="color" value={self.colors[6].clone()} onchange={Self::get_color_callback(link,6)}/>
-                    <input type="color" value={self.colors[7].clone()} onchange={Self::get_color_callback(link,7)}/>
-                    <input type="color" value={self.colors[8].clone()} onchange={Self::get_color_callback(link,8)}/>
-                    <input type="color" value={self.colors[9].clone()} onchange={Self::get_color_callback(link,9)}/>
-                    <input type="color" value={self.colors[10].clone()} onchange={Self::get_color_callback(link,10)}/>
-                    <input type="color" value={self.colors[11].clone()} onchange={Self::get_color_callback(link,11)}/>
+                    <div class="colors-section">
+                    <h1>{"website colors"}</h1>
+                    <div class="colors-holder">
+                    <div class="color-tab">
+                        <input type="color" value={self.colors[0].clone()} onchange={Self::get_color_callback(link,0)}/>
+                        <div class="color-tab-text">
+                        {"background color"}
+                        </div>
+                    </div>
+                    <div class="color-tab">
+                        <input type="color" value={self.colors[1].clone()} onchange={Self::get_color_callback(link,1)}/>
+                        <div class="color-tab-text">
+                        {"board color"}
+                        </div>
+                    </div>
+                    <div class="color-tab">
+                        <input type="color" value={self.colors[2].clone()} onchange={Self::get_color_callback(link,2)}/>
+                        <div class="color-tab-text">
+                        {"board outline"}
+                        </div>
+                    </div>
+                    <div class="color-tab">
+                        <input type="color" value={self.colors[3].clone()} onchange={Self::get_color_callback(link,3)}/>
+                        <div class="color-tab-text" style="color: var(--background-color);">
+                        {"text color"}
+                        </div>
+                    </div>
+                    <div class="color-tab">
+                        <input type="color" value={self.colors[4].clone()} onchange={Self::get_color_callback(link,4)}/>
+                        <div class="color-tab-text">
+                        {"accent target"}
+                        </div>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="colors-section">
+                        <h1>{"tetrominoes colors"}</h1>
+                        <div class="colors-holder">
+                            <div class="color-tab">
+                                <input type="color" value={self.colors[5].clone()} onchange={Self::get_color_callback(link,5)}/>
+                                <div class="color-tab-text" style="color: color-mix(in srgb, var(--Icolor) 20%, var(--board-bg));">
+                                {"I tetromino"}
+                                </div>
+                            </div>
+                            <div class="color-tab">
+                                <input type="color" value={self.colors[6].clone()} onchange={Self::get_color_callback(link,6)}/>
+                                <div class="color-tab-text" style="color: color-mix(in srgb, var(--Ocolor) 20%, var(--board-bg));">
+                                {"O tetromino"}
+                                </div>
+                            </div>
+                            <div class="color-tab">
+                                <input type="color" value={self.colors[7].clone()} onchange={Self::get_color_callback(link,7)}/>
+                                <div class="color-tab-text" style="color: color-mix(in srgb, var(--Tcolor) 20%, var(--board-bg));">
+                                {"T tetromino"}
+                                </div>
+                            </div>
+                            <div class="color-tab">
+                                <input type="color" value={self.colors[8].clone()} onchange={Self::get_color_callback(link,8)}/>
+                                <div class="color-tab-text" style="color: color-mix(in srgb, var(--Lcolor) 20%, var(--board-bg));">
+                                {"L tetromino"}
+                                </div>
+                            </div>    
+                            <div class="color-tab">    
+                                <input type="color" value={self.colors[9].clone()} onchange={Self::get_color_callback(link,9)}/>
+                                <div class="color-tab-text" style="color: color-mix(in srgb, var(--Jcolor) 20%, var(--board-bg));">
+                                {"J tetromino"}
+                                </div>
+                            </div>    
+                            <div class="color-tab">
+                                <input type="color" value={self.colors[10].clone()} onchange={Self::get_color_callback(link,10)}/>
+                                <div class="color-tab-text" style="color: color-mix(in srgb, var(--Scolor) 20%, var(--board-bg));">
+                                {"S tetromino"}
+                                </div>
+                            </div>    
+                            <div class="color-tab">
+                                <input type="color" value={self.colors[11].clone()} onchange={Self::get_color_callback(link,11)}/>
+                                <div class="color-tab-text" style="color: color-mix(in srgb, var(--Zcolor) 20%, var(--board-bg));">
+                                {"Z tetromino"}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="horiz-section">
+                    <h1>{"tetromino outline opacity"}</h1>
+                    <div class="text">{"opacity of the outline of tetrominoes"}</div>
+                    <input name="piece-outline-opacity" type="range" min=0 max=100 value={self.colors[12].clone()} onchange={Self::get_color_callback(link,12)}/>
+                    <h2>{format!("{}%",self.colors[12].clone())}</h2>
+                    </div>
                     <div class="horiz-section">
                     <h1>{"key held delay"}</h1>
                     <div class="text">{"The amount of time in milliseconds that a left/right must be held before the piece moves sideways"}</div>

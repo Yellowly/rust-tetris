@@ -7,6 +7,26 @@ body {
     touch-action:none;
     font-family: monospace;
 }
+::-webkit-scrollbar {
+    width: 5px;
+  }
+  
+  /* Track */
+  ::-webkit-scrollbar-track {
+    background: var(--bg-color);
+  }
+  
+  /* Handle */
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, #2c2a29 80%, white);
+    border-radius: 4px;
+
+  }
+  
+  /* Handle on hover */
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, #2c2a29 50%, white);
+  }
 
 :root{
     --block-dim: min(calc(100vh/30),calc(100vw/20));
@@ -73,43 +93,43 @@ h1 {
 .I-color{
     /* border: 2px solid oklch(from var(--Icolor) calc(l-20) c h); */
     /* border: 2px solid oklch(from var(--Icolor) calc(l-20) c h); */
-    border: 2px solid color-mix(in srgb, var(--Icolor) 70%, var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Icolor) var(--outline-opacity), var(--board-outline));
 }
 .filled.T-color{
     background-color:var(--Tcolor);
 }
 .T-color{
-    border: 2px solid color-mix(in srgb, var(--Tcolor) 70%, var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Tcolor) var(--outline-opacity), var(--board-outline));
 }
 .filled.O-color{
     background-color:var(--Ocolor);
 }
 .O-color{
-    border: 2px solid color-mix(in srgb, var(--Ocolor) 70%, var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Ocolor) var(--outline-opacity), var(--board-outline));
 }
 .filled.S-color{
     background-color:var(--Scolor);
 }
 .S-color{
-    border: 2px solid color-mix(in srgb, var(--Scolor) 70%, var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Scolor) var(--outline-opacity), var(--board-outline));
 }
 .filled.Z-color{
     background-color:var(--Zcolor);
 }
 .Z-color{
-    border: 2px solid color-mix(in srgb, var(--Zcolor) 70%, var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Zcolor) var(--outline-opacity), var(--board-outline));
 }
 .filled.J-color{
     background-color:var(--Jcolor);
 }
 .J-color{
-    border: 2px solid color-mix(in srgb, var(--Jcolor) 70%, var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Jcolor) var(--outline-opacity), var(--board-outline));
 }
 .filled.L-color{
     background-color:var(--Lcolor);
 }
 .L-color{
-    border: 2px solid color-mix(in srgb, var(--Lcolor) 70%, var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Lcolor) var(--outline-opacity), var(--board-outline));
 }
 
 .translucent{
@@ -166,6 +186,7 @@ button.settings{
     position:absolute;
     top:2px;
     right:2px;
+    font-family: monospace;
 }
 
 button{
@@ -222,7 +243,7 @@ input[type="range"]{
 input[type="range"]:hover + h2{
     /* display:block; */
     visibility: visible;
-    color: var(--text-color);
+    color: color-mix(in hsl, var(--bg-color), var(--accent-target) 36%);
     pointer-events: none;
     margin: auto;
     opacity: 0.9;
@@ -252,7 +273,6 @@ input[type="range"]::-webkit-slider-thumb{
     border:none;
     outline:none;
     font-family: monospace;
-    padding:2px;
     margin:2px;
     font-size:1.4em;
     line-height:1.25em;
@@ -309,4 +329,64 @@ div.text{
     pointer-events: none;
     transition: visibility 0s, opacity 50ms linear;
     margin:0px;
+}
+
+.colors-section{
+    text-align: left;
+    margin-top: 2.5rem;
+}
+.colors-holder{
+    display:grid;
+    grid-template-columns: repeat(auto-fit,minmax(18rem,1fr))!important;
+    gap:0.5rem;
+}
+.colors-section h1{
+    font-size:1.3em;
+    color:color-mix(in hsl, var(--bg-color), var(--accent-target) 20%);
+    margin:2px 0px 2px 0px;
+}
+.color-tab{
+    /* display:grid; */
+    /* display: block; */
+    position: relative;
+    /* align-items: center; */
+}
+
+.color-tab .color-tab-text{
+    font-family: monospace;
+    color: var(--text-color);
+    position:absolute;
+    display:flex;
+    top:0;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3em;
+    pointer-events: none;
+}
+
+.color-tab input{
+    width:99%;
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 16%);
+    border-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 16%);
+    border-radius: 0.7em;
+    border:none;
+    outline:none;
+    font-family: monospace;
+    padding:0px;
+    margin:2px;
+    font-size:1.4em;
+    line-height:1.25em;
+    box-sizing: border-box; 
+}
+.color-tab input[type="color"]::-webkit-color-swatch-wrapper{
+    padding:0.1em;
+    outline:none;
+    border:none;
+}
+.color-tab input[type="color"]::-webkit-color-swatch{
+    border-radius:0.7em;
+    outline:none;
+    border:none;
 }
