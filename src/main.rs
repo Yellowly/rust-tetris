@@ -16,6 +16,7 @@ enum SettingsMsg{
     ToggleSettingsWindow,
     ChangeColor(String, usize),
     ChangeSettings(String, u32),
+    SetTheme(u32),
     SaveCookies,
 }
 
@@ -32,7 +33,7 @@ impl Component for RootComponent{
 
     fn create(ctx: &Context<Self>) -> Self {
         let get_cookies = document().unchecked_into::<HtmlDocument>().cookie().unwrap_or(String::from("None"));
-        let mut colors: Vec<String> = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#00ffff"),String::from("#ffff00")
+        let mut colors: Vec<String> = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
         ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00")];
         let mut game_settings = Settings::default();
         if get_cookies!="None"{
@@ -47,6 +48,9 @@ impl Component for RootComponent{
                                 "hold_time" => game_settings.hold_time=value.parse::<u32>().unwrap_or(game_settings.hold_time),
                                 "hold_move_interval" => game_settings.hold_move_interval=value.parse::<u32>().unwrap_or(game_settings.hold_move_interval),
                                 "max_switches" => game_settings.max_num_held_piece_switches=value.parse::<u32>().unwrap_or(1),
+                                "randomizer" => game_settings.randomizer=match value {"Random" => Randomizers::Random, _ => Randomizers::RandomGenerator},
+                                "lock_delay" => game_settings.lock_delay=value.parse::<u32>().unwrap_or(500),
+                                "moves_before_lock" => game_settings.moves_before_lock=value.parse::<u32>().unwrap_or(15),
                                 _ => {}
                             }
                         }
@@ -83,10 +87,30 @@ impl Component for RootComponent{
                         self.game_settings.queue_display_len=value.parse::<usize>().unwrap_or(self.game_settings.queue_display_len);
                     }
                     4 => {
-                        self.game_settings.randomizer=Randomizers::RandomGenerator;
+                        self.game_settings.randomizer=match self.game_settings.randomizer{Randomizers::Random => Randomizers::RandomGenerator, _ => Randomizers::Random}
+                    }
+                    5 => {
+                        self.game_settings.lock_delay=value.parse::<u32>().unwrap_or(500)
+                    }
+                    6 => {
+                        self.game_settings.moves_before_lock=value.parse::<u32>().unwrap_or(15)
                     }
                     _ => {
 
+                    }
+                }
+            }
+            SettingsMsg::SetTheme(theme_id) => {
+                match theme_id {
+                    1 => {
+                        self.colors = vec![String::from("#2c2a29"),String::from("#353231"),String::from("#222120"),String::from("#cfb24a"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
+                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00")];
+                        self.game_settings = Settings::default();
+                    }
+                    _ => {
+                        self.colors = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
+                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00")];
+                        self.game_settings = Settings::default();
                     }
                 }
             }
@@ -95,7 +119,12 @@ impl Component for RootComponent{
                 for i in 0..self.colors.len(){
                     let _ = doc.set_cookie(&format!("saved_color_{}={}",i,self.colors[i]));
                 }
-
+                let _ = doc.set_cookie(&format!("hold_time={}",self.game_settings.hold_time));
+                let _ = doc.set_cookie(&format!("hold_move_interval={}",self.game_settings.hold_move_interval));
+                let _ = doc.set_cookie(&format!("max_switches={}",self.game_settings.max_num_held_piece_switches));
+                let _ = doc.set_cookie(&format!("lock_delay={}",self.game_settings.lock_delay));
+                let _ = doc.set_cookie(&format!("moves_before_lock={}",self.game_settings.moves_before_lock));
+                let _ = doc.set_cookie(&format!("randomizer={}",self.game_settings.randomizer.to_string()));
             }
         }
         true
@@ -107,9 +136,9 @@ impl Component for RootComponent{
         let _ = r.set_attribute("style", &format!("background-color: {};",self.colors[0]));
         let link = ctx.link();
         html!{
-            <div class="root" style={format!("--bg-color: {}; --board-bg: {}; --board-outline: {}; --Icolor: {}; --Ocolor: {}; --Tcolor:{}; --Lcolor: {}; --Jcolor: {};
+            <div class="root" style={format!("--bg-color: {}; --board-bg: {}; --board-outline: {}; --text-color: {}; --accent-target: {}; --Icolor: {}; --Ocolor: {}; --Tcolor:{}; --Lcolor: {}; --Jcolor: {};
             --Scolor: {}; --Zcolor: {};",self.colors[0],self.colors[1], self.colors[2],self.colors[3],self.colors[4],self.colors[5],self.colors[6],
-            self.colors[7],self.colors[8],self.colors[9])}>
+            self.colors[7],self.colors[8],self.colors[9],self.colors[10],self.colors[11])}>
                 <h1>{"Testris"}</h1>
                 <p>{self.colors[0].clone()}</p>
                 <button class="settings" onclick={link.callback(|_| SettingsMsg::ToggleSettingsWindow)}>
@@ -128,10 +157,50 @@ impl Component for RootComponent{
                     <input type="color" value={self.colors[7].clone()} onchange={Self::get_color_callback(link,7)}/>
                     <input type="color" value={self.colors[8].clone()} onchange={Self::get_color_callback(link,8)}/>
                     <input type="color" value={self.colors[9].clone()} onchange={Self::get_color_callback(link,9)}/>
-                    <input type="number" value={self.game_settings.hold_time.to_string()} onchange={Self::get_settings_callback(link,0)}/>
-                    <input type="number" value={self.game_settings.hold_move_interval.to_string()} onchange={Self::get_settings_callback(link,1)}/>
-                    <input type="number" value={self.game_settings.max_num_held_piece_switches.to_string()} onchange={Self::get_settings_callback(link,2)}/>
-                    <input type="number" value={self.game_settings.queue_display_len.to_string()} onchange={Self::get_settings_callback(link,3)}/>
+                    <input type="color" value={self.colors[10].clone()} onchange={Self::get_color_callback(link,10)}/>
+                    <input type="color" value={self.colors[11].clone()} onchange={Self::get_color_callback(link,11)}/>
+                    <div class="horiz-section">
+                    <h1>{"key held delay"}</h1>
+                    <div class="text">{"The amount of time in milliseconds that a left/right must be held before the piece moves sideways"}</div>
+                    <input name="key-held-delay" type="number" value={self.game_settings.hold_time.to_string()} onchange={Self::get_settings_callback(link,0)}/>
+                    </div>
+                    <div class="horiz-section">
+                    <h1>{"key held speed"}</h1>
+                    <div class="text">{"The time in milliseconds between sideways piece movements when left/right is being held. (changes how fast pieces move side to side when keys are held)"}</div>
+                    <input name="key-held-speed" type="number" value={self.game_settings.hold_move_interval.to_string()} onchange={Self::get_settings_callback(link,1)}/>
+                    </div>
+                    <div class="horiz-section">
+                    <h1>{"held piece switches"}</h1>
+                    <div class="text">{"The number of times you can switch between active and held piece"}</div>
+                    <input name="max-switches-for-held-piece" type="number" min="0" value={self.game_settings.max_num_held_piece_switches.to_string()} onchange={Self::get_settings_callback(link,2)}/>
+                    </div>
+                    <div class="horiz-section">
+                    <h1>{"queue display length"}</h1>
+                    <div class="text">{"Length of the next pieces display"}</div>
+                    <input name="queue-display-len" type="range" min=0 max=6 value={self.game_settings.queue_display_len.to_string()} onchange={Self::get_settings_callback(link,3)}/>
+                    <h2>{self.game_settings.queue_display_len}</h2>
+                    </div>
+                    <div class="horiz-section">
+                    <h1>{"lock delay"}</h1>
+                    <div class="text">{"Time in milliseconds until a piece \"locks\" into place"}</div>
+                    <input name="lock-delay" type="number" value={self.game_settings.lock_delay.to_string()} onchange={Self::get_settings_callback(link,5)}/>
+                    </div>
+                    <div class="horiz-section">
+                    <h1>{"moves before lock"}</h1>
+                    <div class="text">{"Number of inputs that reset the \"lock delay\" before the piece is forcibly locked into place"}</div>
+                    <input name="moves-before-lock" type="number" value={self.game_settings.moves_before_lock.to_string()} onchange={Self::get_settings_callback(link,6)}/>
+                    </div>
+                    <div class="horiz-section">
+                    <h1>{"randomizer"}</h1>
+                    <div class="text">{"Which randomizer algorithmn to use for generating next pieces (random = fully random, randomgenerator = randomly sorts 7 pieces at a time)"}</div>
+                    <button onclick={link.callback(|_| SettingsMsg::ChangeSettings(String::new(),4))}>{self.game_settings.randomizer.to_string()}</button>
+                    </div>
+                    <div class="horiz-section">
+                        <h1>{"theme"}</h1>
+                        <div class="text">{"Toggles between themes"}</div>
+                        <button onclick={link.callback(|_| SettingsMsg::SetTheme(0))}>{"Toggle Theme"}</button>
+                    </div>
+
                     <button onclick={link.callback(|_| SettingsMsg::SaveCookies)}>
                     {"save"}
                     </button>
@@ -234,7 +303,7 @@ impl Component for GameDisplay {
                         };
                         self.move_handle = (false,Some(handle));
                     }
-                    if self.stick_counter<10{
+                    if self.stick_counter<self.settings.moves_before_lock{
                         self.stick_handle=None;
                     }
                 }
@@ -253,7 +322,7 @@ impl Component for GameDisplay {
                         self.move_handle = (true,Some(handle));
 
                     }
-                    if self.stick_counter<10{
+                    if self.stick_counter<self.settings.moves_before_lock{
                         self.stick_handle=None;
                     }
                 }
@@ -291,7 +360,7 @@ impl Component for GameDisplay {
                     if self.stick_handle.is_none(){
                         self.stick_handle = Some({
                             let link = _ctx.link().clone();
-                            Timeout::new(self.get_tick_speed()*3, move || link.send_message(GameMsg::Drop))
+                            Timeout::new(self.settings.lock_delay, move || link.send_message(GameMsg::Drop))
                         }); 
                     }
                 }
@@ -319,7 +388,7 @@ impl Component for GameDisplay {
             }
             GameMsg::Rotate => {
                 self.game.rotate_clockwise();
-                if self.stick_counter<10{
+                if self.stick_counter<self.settings.moves_before_lock{
                     self.stick_handle=None;
                 }
             }
@@ -469,11 +538,13 @@ struct Settings{
     hold_move_interval: u32,
     max_num_held_piece_switches: u32,
     queue_display_len: usize,
+    lock_delay: u32,
+    moves_before_lock: u32,
     randomizer: Randomizers
 }
 impl Default for Settings{
     fn default() -> Settings{
-        Settings{hold_time: 150, hold_move_interval: 60, max_num_held_piece_switches: 1, queue_display_len: 4, randomizer: Randomizers::RandomGenerator}
+        Settings{hold_time: 150, hold_move_interval: 60, max_num_held_piece_switches: 1, queue_display_len: 4, lock_delay: 500, moves_before_lock: 15, randomizer: Randomizers::RandomGenerator}
     }
 }
 
@@ -498,6 +569,14 @@ impl Randomizers{
             Self::Random => {
                 Vec::from_iter((0..len).map(|_| TetrisPieceType::get_random()).collect::<Vec<TetrisPieceType>>())
             }
+        }
+    }
+}
+impl ToString for Randomizers{
+    fn to_string(&self) -> String {
+        match &self{
+            Self::RandomGenerator => String::from("RandomGenerator"),
+            Self::Random => String::from("Random")
         }
     }
 }
@@ -842,12 +921,6 @@ impl TetrisBoard{
         if self.check_overlap(){ self.falling_loc+=self.dimentions.0; }
         !self.check_overlap()
     }
-}
-
-#[derive(Clone, PartialEq, Properties)]
-struct TetrisBoardProps{
-    width: usize,
-    height: usize,
 }
 
 impl TetrisBoard{

@@ -15,11 +15,11 @@ body {
 }
 
 hr{
-    border-color: color-mix(in hsl, var(--bg-color), white 5%);
+    border-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 5%);
 }
 
 p {
-    color: #a7a7a7;
+    color: var(--text-color);
 }
 
 .inline-block p{
@@ -169,18 +169,18 @@ button.settings{
 }
 
 button{
-    background-color: color-mix(in hsl, var(--bg-color), white 5%);
-    color:#a7a7a7;
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 5%);
+    color:var(--text-color);
     border: none;
     border-radius:4px;
     margin: 1px;
     padding:4px;
 }
 button:hover{
-    background-color: color-mix(in hsl, var(--bg-color), white 7%);
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 7%);
 }
 button:active{
-    background-color: color-mix(in hsl, var(--bg-color), white 9%);
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 9%);
 }
 
 .sidebar-num-display{
@@ -189,22 +189,124 @@ button:active{
     margin-bottom: 8px;
     margin-left:auto;
     margin-right: auto;
-    background-color: grey;
+    /* background-color: grey; */
     /* opacity: 0.1; */
-    background-color: color-mix(in hsl, var(--bg-color), white 3%);
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 3%);
     border-radius:4px;
 }
 .sidebar-num-display h1{
     font-size: calc(var(--side-block-dim)*0.7);
     margin:2px;
-    color: #a7a7a7;
+    color: var(--text-color);
 }
 .sidebar-num-display p{
     font-size: calc(var(--side-block-dim)*0.65);
     margin:1px;
 }
 input[type="color"]{
-    background-color: color-mix(in hsl, var(--bg-color), white 8%);
-    border-color: color-mix(in hsl, var(--bg-color), white 8%);
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 8%);
+    border-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 8%);
     border-radius: 5px;
+}
+input[type="range"]{
+    -webkit-appearance: none;
+    /* appearance: none; */
+    /* background: transparent; */
+    cursor: pointer;
+    overflow:hidden;
+    height:1.3em;
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 8%);
+    border-radius: 0.7em;
+    /* padding:0px; */
+}
+input[type="range"]:hover + h2{
+    /* display:block; */
+    visibility: visible;
+    color: var(--text-color);
+    pointer-events: none;
+    margin: auto;
+    opacity: 0.9;
+}
+input[type="range"]::-webkit-slider-runnable-track{
+    -webkit-appearance: none;
+    /* appearance: none; */
+    height:1.3em;
+    color: color-mix(in hsl, var(--bg-color), var(--accent-target) 32%);
+    /* border-radius: 1.4em; */
+} 
+input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance: none; /* Override default look */
+    appearance: none;
+    background: var(--text-color);
+    /* box-shadow: -256px 0 0 244px color-mix(in hsl, var(--bg-color), white 32%); */
+    height: 1.3em;
+    width: 1.3em;
+    border-radius: 1.3em;
+}
+
+.horiz-section input, .horiz-section button{
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 8%);
+    border-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 8%);
+    border-radius: 0.7em;
+    color:var(--text-color);
+    border:none;
+    outline:none;
+    font-family: monospace;
+    padding:2px;
+    margin:2px;
+    font-size:1.4em;
+    line-height:1.25em;
+    padding:0.3em 0.6em 0.3em 0.6em;
+    box-sizing: border-box; 
+    grid-area: inputs;
+}
+input:focus{
+    border: 2px solid var(--text-color);
+    padding-left: calc(0.6em - 1.7px);
+}
+label{
+    color:var(--text-color);
+}
+
+.horiz-section{
+    align-items: center;
+    column-gap:2rem;
+    display:grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: auto 1fr;
+    row-gap:0.3rem;
+    grid-template-areas: 
+    "title inputs" 
+    "text inputs";
+    text-align: left;
+    margin-top:2.5rem;
+}
+.horiz-section button:hover{
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 11%);
+}
+.horiz-section button:active{
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 14%);
+}
+
+.horiz-section h1{
+    font-size:1.3em;
+    color:color-mix(in hsl, var(--bg-color), var(--accent-target) 20%);
+    grid-area: title;
+    margin:2px 0px 2px 0px;
+}
+
+div.text{
+    color: var(--text-color);
+    font-size: 1.4em;
+    grid-area:text;
+}
+
+.horiz-section h2{
+    grid-area: inputs;
+    opacity: 0;
+    /* display:none; */
+    visibility: hidden;
+    pointer-events: none;
+    transition: visibility 0s, opacity 50ms linear;
+    margin:0px;
 }
