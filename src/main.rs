@@ -17,6 +17,7 @@ enum SettingsMsg{
     ChangeColor(String, usize),
     ChangeSettings(String, u32),
     SetTheme(u32),
+    Revert,
     SaveCookies,
 }
 
@@ -51,6 +52,7 @@ impl Component for RootComponent{
                                 "randomizer" => game_settings.randomizer=match value {"Random" => Randomizers::Random, _ => Randomizers::RandomGenerator},
                                 "lock_delay" => game_settings.lock_delay=value.parse::<u32>().unwrap_or(500),
                                 "moves_before_lock" => game_settings.moves_before_lock=value.parse::<u32>().unwrap_or(15),
+                                "touch_horiz_sens" => game_settings.touch_horiz_sens=value.parse::<i32>().unwrap_or(50),
                                 _ => {}
                             }
                         }
@@ -95,6 +97,9 @@ impl Component for RootComponent{
                     6 => {
                         self.game_settings.moves_before_lock=value.parse::<u32>().unwrap_or(15)
                     }
+                    7 => {
+                        self.game_settings.touch_horiz_sens=value.parse::<i32>().unwrap_or(50)
+                    }
                     _ => {
 
                     }
@@ -114,6 +119,38 @@ impl Component for RootComponent{
                     }
                 }
             }
+            SettingsMsg::Revert => {
+                let get_cookies = document().unchecked_into::<HtmlDocument>().cookie().unwrap_or(String::from("None"));
+                self.colors = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
+                ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70")];
+                self.game_settings = Settings::default();
+                if get_cookies!="None"{
+                    // colors = Vec::new();
+                    for v in get_cookies.split("; "){
+                        match v.split_once('='){
+                            Some((name, value)) => {
+                                if name.starts_with("saved_color_"){
+                                    self.colors[name.split_at(12).1.parse::<usize>().unwrap_or(0)] = String::from(value);
+                                }else{
+                                    match name{
+                                        "hold_time" => self.game_settings.hold_time=value.parse::<u32>().unwrap_or(self.game_settings.hold_time),
+                                        "hold_move_interval" => self.game_settings.hold_move_interval=value.parse::<u32>().unwrap_or(self.game_settings.hold_move_interval),
+                                        "max_switches" => self.game_settings.max_num_held_piece_switches=value.parse::<u32>().unwrap_or(1),
+                                        "randomizer" => self.game_settings.randomizer=match value {"Random" => Randomizers::Random, _ => Randomizers::RandomGenerator},
+                                        "lock_delay" => self.game_settings.lock_delay=value.parse::<u32>().unwrap_or(500),
+                                        "moves_before_lock" => self.game_settings.moves_before_lock=value.parse::<u32>().unwrap_or(15),
+                                        "touch_horiz_sens" => self.game_settings.touch_horiz_sens=value.parse::<i32>().unwrap_or(50),
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            None => {
+                                // this cookie does not exist. Error? idk
+                            }
+                        }
+                    }
+                }
+            }
             SettingsMsg::SaveCookies => {
                 let doc = document().unchecked_into::<HtmlDocument>();
                 for i in 0..self.colors.len(){
@@ -125,6 +162,7 @@ impl Component for RootComponent{
                 let _ = doc.set_cookie(&format!("lock_delay={}",self.game_settings.lock_delay));
                 let _ = doc.set_cookie(&format!("moves_before_lock={}",self.game_settings.moves_before_lock));
                 let _ = doc.set_cookie(&format!("randomizer={}",self.game_settings.randomizer.to_string()));
+                let _ = doc.set_cookie(&format!("touch_horiz_sens={}",self.game_settings.touch_horiz_sens));
             }
         }
         true
@@ -276,10 +314,15 @@ impl Component for RootComponent{
                         <div class="text">{"Toggles between themes"}</div>
                         <button onclick={link.callback(|_| SettingsMsg::SetTheme(0))}>{"Toggle Theme"}</button>
                     </div>
-
-                    <button onclick={link.callback(|_| SettingsMsg::SaveCookies)}>
-                    {"save"}
-                    </button>
+                    <div class="horiz-section">
+                        <h1>{"touch horizontal sensitivity"}</h1>
+                        <div class="text">{"Touchscreen sensitivity for moving tetrominoes horizontally side to side"}</div>
+                        <input name="moves-before-lock" type="number" value={self.game_settings.touch_horiz_sens.to_string()} onchange={Self::get_settings_callback(link,7)}/>
+                    </div>
+                    <div class="settings-footer">
+                        <button onclick={link.callback(|_| SettingsMsg::Revert)}>{"revert"}</button>
+                        <button onclick={link.callback(|_| SettingsMsg::SaveCookies)}>{"save"}</button>
+                    </div>
                     <p>{self.cookies.clone()}</p>
                     </div>
                 }
@@ -348,6 +391,7 @@ struct GameDisplay{
     touch_pos: (i32,i32),
     touch_velocity: (i32,i32),
     touch_can_rotate: bool,
+    game_end_screen: bool,
     settings: Settings
 }
 
@@ -360,7 +404,7 @@ impl Component for GameDisplay {
         let first_piece = piece_queue.pop_front().unwrap_or(TetrisPieceType::I);
         GameDisplay { game: TetrisBoard::make(10,20,first_piece), ticker_handle: None, move_handle: (true,None), 
             down_handle: None, settings: ctx.props().settings.clone(), level: 1, stick_handle: None, stick_counter: 0, held_piece: None, held_piece_switch_count: 0,
-            piece_queue, score: 0, lines_cleared: 0,
+            piece_queue, score: 0, lines_cleared: 0, game_end_screen: false,
             touch_start_pos: (0,0), touch_pos: (0,0), touch_translation: 0, touch_velocity: (0,0), touch_can_rotate: true}
     }
 
@@ -409,15 +453,19 @@ impl Component for GameDisplay {
                 }
             }
             GameMsg::Drop => {
+                if self.game_end_screen {return false}
                 self.score += self.game.drop()*2;
                 if !self.game.new_falling_piece(self.piece_queue.pop_front().unwrap_or(TetrisPieceType::I)){
                     // reset game
-                    self.game = TetrisBoard::make(10,20,TetrisPieceType::get_random());
+                    self.game_end_screen = true;
                     self.ticker_handle=None;
-                    self.level = 1;
-                    self.score = 0;
-                    self.lines_cleared=0;
-                    self.held_piece=None;
+                    return true
+                    // self.game = TetrisBoard::make(10,20,TetrisPieceType::get_random());
+                    // self.ticker_handle=None;
+                    // self.level = 1;
+                    // self.score = 0;
+                    // self.lines_cleared=0;
+                    // self.held_piece=None;
                 }
                 if self.piece_queue.len()<=self.settings.queue_display_len{ self.piece_queue.extend(self.settings.randomizer.make_sequence(self.settings.queue_display_len))}
                 // self.piece_queue.push_back(TetrisPieceType::get_random());
@@ -431,6 +479,14 @@ impl Component for GameDisplay {
                 self.held_piece_switch_count=0;
             }
             GameMsg::Tick => {
+                if self.game_end_screen{
+                    self.game_end_screen = false;
+                    self.game = TetrisBoard::make(10,20,TetrisPieceType::get_random());
+                    self.level = 1;
+                    self.score = 0;
+                    self.lines_cleared=0;
+                    self.held_piece=None;
+                }
                 if !self.game.move_down(){
                     self.stick_counter+=1;
                     if self.stick_handle.is_none(){
@@ -447,6 +503,7 @@ impl Component for GameDisplay {
                 self.ticker_handle=Some(handle);
             }
             GameMsg::Hold => {
+                if self.game_end_screen {return true}
                 self.held_piece_switch_count+=1;
                 if self.held_piece_switch_count>self.settings.max_num_held_piece_switches{
                     return true
@@ -496,7 +553,7 @@ impl Component for GameDisplay {
                 //t.prevent_default();
                 let first_touch = t.touches().get(0).unwrap();
                 let pos=(first_touch.client_x(),first_touch.client_y());
-                if pos.0-self.touch_translation>=25 && (pos.1-self.touch_start_pos.1).abs()<50{
+                if pos.0-self.touch_translation>=25 && (pos.1-self.touch_start_pos.1).abs()<self.settings.touch_horiz_sens{
                     self.touch_translation=pos.0;
                     self.touch_can_rotate=false;
                     _ctx.link().send_message(GameMsg::Right(InputTypes::Touch));
@@ -504,7 +561,7 @@ impl Component for GameDisplay {
                     //     let link = _ctx.link().clone();
                     //     Timeout::new(0, move || link.send_message(GameMsg::Right(InputTypes::Touch)))
                     // }.forget();
-                }else if pos.0-self.touch_translation<=-25 && (pos.1-self.touch_start_pos.1).abs()<50{
+                }else if pos.0-self.touch_translation<=-25 && (pos.1-self.touch_start_pos.1).abs()<self.settings.touch_horiz_sens{
                     self.touch_translation=pos.0;
                     self.touch_can_rotate=false;
                     _ctx.link().send_message(GameMsg::Left(InputTypes::Touch));
@@ -564,7 +621,6 @@ impl Component for GameDisplay {
         html!{
             <div class="game no-touch-move" tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
             onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}
-            ontouchstart={link.callback(|t:TouchEvent| GameMsg::TouchStart(t))} ontouchmove={link.callback(|t| GameMsg::TouchMove(t))} ontouchend={link.callback(|t| GameMsg::TouchEnd(t))}
             onfocusin={link.callback(|_| GameMsg::Tick)} onfocusout={link.callback(|_| GameMsg::Unfocus)}>
 
                 // <div class="notouch" tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
@@ -573,7 +629,7 @@ impl Component for GameDisplay {
                 // <h1>{"test"}</h1>
                 // <button class="start-button" onclick={link.callback(|_| GameMsg::Tick)} onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(false), 38=>GameMsg::Rotate, 37=>GameMsg::Left(false), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
                 // onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}/>
-                <div class="inline-block">
+                <div class="inline-block" onclick={link.callback(|_| GameMsg::Hold)}>
                     {TetrisPieceType::view(&self.held_piece)}
                     <div class="sidebar-num-display">
                     <h1>{"Score"}</h1>
@@ -588,7 +644,7 @@ impl Component for GameDisplay {
                     // <p>{format!("{}",self.piece_queue.len())}</p>
                     // <p>{format!("w{},h{}",dim.0,dim.1)}</p>
                 </div>
-                <div class="inline-block">
+                <div class="inline-block" ontouchstart={link.callback(|t:TouchEvent| GameMsg::TouchStart(t))} ontouchmove={link.callback(|t| GameMsg::TouchMove(t))} ontouchend={link.callback(|t| GameMsg::TouchEnd(t))}>
                     {self.game.view()}
                 </div>
                 <div class="inline-block">
@@ -598,6 +654,16 @@ impl Component for GameDisplay {
                     }).collect::<Html>()
                 }
                 </div>
+
+                if self.game_end_screen{
+                    <div class="notouch" onclick={link.callback(|_| GameMsg::Tick)}></div>
+                    <div class="game-end-menu">
+                        <h1>{"Game Over"}</h1>
+                        <h2>{format!("Score: {}",self.score)}</h2>
+                        <h2>{format!("Level: {}",self.level)}</h2>
+                    </div>
+                }
+
             </div>
         }
     }
@@ -616,11 +682,13 @@ struct Settings{
     queue_display_len: usize,
     lock_delay: u32,
     moves_before_lock: u32,
-    randomizer: Randomizers
+    randomizer: Randomizers,
+    touch_horiz_sens: i32
 }
 impl Default for Settings{
     fn default() -> Settings{
-        Settings{hold_time: 150, hold_move_interval: 60, max_num_held_piece_switches: 1, queue_display_len: 4, lock_delay: 500, moves_before_lock: 15, randomizer: Randomizers::RandomGenerator}
+        Settings{hold_time: 150, hold_move_interval: 60, max_num_held_piece_switches: 1, queue_display_len: 4, lock_delay: 500, moves_before_lock: 15, randomizer: Randomizers::RandomGenerator,
+        touch_horiz_sens: 50}
     }
 }
 
