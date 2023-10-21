@@ -18,13 +18,14 @@ enum SettingsMsg{
     ChangeSettings(String, u32),
     SetTheme(u32),
     Revert,
-    SaveCookies,
+    SaveCookies(bool),
 }
 
 struct RootComponent{
     game_settings: Settings,
     displaying_window: bool,
     colors: Vec<String>,
+    cookie_notif: bool,
     cookies: String
 }
 impl Component for RootComponent{
@@ -63,12 +64,13 @@ impl Component for RootComponent{
                 }
             }
         }
-        Self{game_settings: Settings::default(), displaying_window: false, colors, cookies: get_cookies}
+        Self{game_settings: Settings::default(), displaying_window: false, colors, cookies: get_cookies, cookie_notif: false}
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg{
             SettingsMsg::ToggleSettingsWindow => {
+                self.cookie_notif=false;
                 self.displaying_window = !self.displaying_window;
             }
             SettingsMsg::ChangeColor(color, id) => {
@@ -151,8 +153,15 @@ impl Component for RootComponent{
                     }
                 }
             }
-            SettingsMsg::SaveCookies => {
+            SettingsMsg::SaveCookies(force) => {
                 let doc = document().unchecked_into::<HtmlDocument>();
+                let curr_cookies = doc.cookie().unwrap_or(String::from("None"));
+                if curr_cookies.len()<10 && !force{
+                    self.cookie_notif=true;
+                    return true
+                }else if force{
+                    self.cookie_notif=false;
+                }
                 for i in 0..self.colors.len(){
                     let _ = doc.set_cookie(&format!("saved_color_{}={}",i,self.colors[i]));
                 }
@@ -321,10 +330,17 @@ impl Component for RootComponent{
                     </div>
                     <div class="settings-footer">
                         <button onclick={link.callback(|_| SettingsMsg::Revert)}>{"revert"}</button>
-                        <button onclick={link.callback(|_| SettingsMsg::SaveCookies)}>{"save"}</button>
+                        <button onclick={link.callback(|_| SettingsMsg::SaveCookies(false))}>{"save"}</button>
                     </div>
                     <p>{self.cookies.clone()}</p>
                     </div>
+                    if self.cookie_notif{
+                        <div class="cookie-menu">
+                            <p>{"Cookies are used to save your preferences. Without cookies, you can still modify your preferences, but they will not be saved once you close this tab."}</p>
+                            <button onclick={link.callback(|_| SettingsMsg::ToggleSettingsWindow)}>{"Reject"}</button>
+                            <button onclick={link.callback(|_| SettingsMsg::SaveCookies(true))}>{"Accept"}</button>
+                        </div>
+                    }
                 }
                 // <div class="notouch"></div>
                 else{
@@ -536,7 +552,7 @@ impl Component for GameDisplay {
             }
             GameMsg::TouchStart(t) => {
                 //t.prevent_default();
-                _ctx.link().send_message(GameMsg::Tick);
+                // _ctx.link().send_message(GameMsg::Tick);
                 if self.ticker_handle.is_none(){
                     _ctx.link().send_message(GameMsg::Tick);
                     // {

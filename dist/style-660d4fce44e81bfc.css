@@ -307,6 +307,25 @@ label{
     text-align: left;
     margin-top:2.5rem;
 }
+
+@media only screen and (max-width: 40.625rem) {
+    .horiz-section {
+        grid-template-areas:
+            "title"
+            "text"
+            "inputs";
+        grid-template-columns: 1fr;
+    }
+    .horiz-section input[type="range"] + h2{
+        /* display:block; */
+        visibility: visible;
+        color: color-mix(in hsl, var(--bg-color), var(--accent-target) 36%);
+        pointer-events: none;
+        margin: auto;
+        opacity: 0.9;
+    }
+}
+
 .horiz-section button:hover{
     background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 11%);
 }
@@ -442,4 +461,26 @@ div.text{
 }
 .game-end-menu h2{
     margin:8px;
+}
+
+.cookie-menu{
+    position:fixed;
+    width:fit-content;
+    height:fit-content;
+    top:50vh;
+    left:50vw;
+    transform: translate(-25vw,-50px);
+    background-color: color-mix(in hsl, var(--bg-color), var(--accent-target) 8%);
+    border-radius: 16px;
+    color: var(--text-color);
+    font-family: monospace;
+    cursor: default;
+    font-size:1.3em;
+    padding:6px;
+}
+
+.cookie-menu button{
+    font-family: monospace;
+    margin:4px;
+    font-size:1em;
 }
