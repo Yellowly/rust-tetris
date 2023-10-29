@@ -36,7 +36,7 @@ impl Component for RootComponent{
     fn create(ctx: &Context<Self>) -> Self {
         let get_cookies = document().unchecked_into::<HtmlDocument>().cookie().unwrap_or(String::from("None"));
         let mut colors: Vec<String> = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70")];
+        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000")];
         let mut game_settings = Settings::default();
         if get_cookies!="None"{
             // colors = Vec::new();
@@ -53,7 +53,9 @@ impl Component for RootComponent{
                                 "randomizer" => game_settings.randomizer=match value {"Random" => Randomizers::Random, _ => Randomizers::RandomGenerator},
                                 "lock_delay" => game_settings.lock_delay=value.parse::<u32>().unwrap_or(500),
                                 "moves_before_lock" => game_settings.moves_before_lock=value.parse::<u32>().unwrap_or(15),
-                                "touch_horiz_sens" => game_settings.touch_horiz_sens=value.parse::<i32>().unwrap_or(50),
+                                "touch_horiz_sens" => game_settings.touch_horiz_sens=value.parse::<i32>().unwrap_or(25),
+                                "down_hold_time" => game_settings.down_hold_time=value.parse::<u32>().unwrap_or(game_settings.down_hold_time),
+                                "down_hold_move_interval" => game_settings.down_hold_move_interval=value.parse::<u32>().unwrap_or(game_settings.down_hold_move_interval),
                                 _ => {}
                             }
                         }
@@ -100,7 +102,13 @@ impl Component for RootComponent{
                         self.game_settings.moves_before_lock=value.parse::<u32>().unwrap_or(15)
                     }
                     7 => {
-                        self.game_settings.touch_horiz_sens=value.parse::<i32>().unwrap_or(50)
+                        self.game_settings.touch_horiz_sens=value.parse::<i32>().unwrap_or(25)
+                    }
+                    8 => {
+                        self.game_settings.down_hold_time=value.parse::<u32>().unwrap_or(self.game_settings.down_hold_time);
+                    }
+                    9 => {
+                        self.game_settings.down_hold_move_interval=value.parse::<u32>().unwrap_or(self.game_settings.down_hold_move_interval);
                     }
                     _ => {
 
@@ -111,12 +119,12 @@ impl Component for RootComponent{
                 match theme_id {
                     1 => {
                         self.colors = vec![String::from("#2c2a29"),String::from("#353231"),String::from("#222120"),String::from("#cfb24a"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70")];
+                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000")];
                         self.game_settings = Settings::default();
                     }
                     _ => {
                         self.colors = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70")];
+                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000")];
                         self.game_settings = Settings::default();
                     }
                 }
@@ -124,7 +132,7 @@ impl Component for RootComponent{
             SettingsMsg::Revert => {
                 let get_cookies = document().unchecked_into::<HtmlDocument>().cookie().unwrap_or(String::from("None"));
                 self.colors = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-                ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70")];
+                ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000")];
                 self.game_settings = Settings::default();
                 if get_cookies!="None"{
                     // colors = Vec::new();
@@ -142,6 +150,8 @@ impl Component for RootComponent{
                                         "lock_delay" => self.game_settings.lock_delay=value.parse::<u32>().unwrap_or(500),
                                         "moves_before_lock" => self.game_settings.moves_before_lock=value.parse::<u32>().unwrap_or(15),
                                         "touch_horiz_sens" => self.game_settings.touch_horiz_sens=value.parse::<i32>().unwrap_or(50),
+                                        "down_hold_time" => self.game_settings.down_hold_time=value.parse::<u32>().unwrap_or(self.game_settings.down_hold_time),
+                                        "down_hold_move_interval" => self.game_settings.down_hold_move_interval=value.parse::<u32>().unwrap_or(self.game_settings.down_hold_move_interval),
                                         _ => {}
                                     }
                                 }
@@ -163,29 +173,36 @@ impl Component for RootComponent{
                     self.cookie_notif=false;
                 }
                 for i in 0..self.colors.len(){
-                    let _ = doc.set_cookie(&format!("saved_color_{}={}",i,self.colors[i]));
+                    let _ = doc.set_cookie(&format!("saved_color_{}={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",i,self.colors[i]));
                 }
-                let _ = doc.set_cookie(&format!("hold_time={}",self.game_settings.hold_time));
-                let _ = doc.set_cookie(&format!("hold_move_interval={}",self.game_settings.hold_move_interval));
-                let _ = doc.set_cookie(&format!("max_switches={}",self.game_settings.max_num_held_piece_switches));
-                let _ = doc.set_cookie(&format!("lock_delay={}",self.game_settings.lock_delay));
-                let _ = doc.set_cookie(&format!("moves_before_lock={}",self.game_settings.moves_before_lock));
-                let _ = doc.set_cookie(&format!("randomizer={}",self.game_settings.randomizer.to_string()));
-                let _ = doc.set_cookie(&format!("touch_horiz_sens={}",self.game_settings.touch_horiz_sens));
+                let _ = doc.set_cookie(&format!("hold_time={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.game_settings.hold_time));
+                let _ = doc.set_cookie(&format!("hold_move_interval={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.game_settings.hold_move_interval));
+                let _ = doc.set_cookie(&format!("max_switches={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.game_settings.max_num_held_piece_switches));
+                let _ = doc.set_cookie(&format!("lock_delay={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.game_settings.lock_delay));
+                let _ = doc.set_cookie(&format!("moves_before_lock={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.game_settings.moves_before_lock));
+                let _ = doc.set_cookie(&format!("randomizer={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.game_settings.randomizer.to_string()));
+                let _ = doc.set_cookie(&format!("touch_horiz_sens={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.game_settings.touch_horiz_sens));
+                let _ = doc.set_cookie(&format!("down_hold_time={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.game_settings.down_hold_time));
+                let _ = doc.set_cookie(&format!("down_hold_move_interval={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.game_settings.down_hold_move_interval));
             }
         }
         true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let do_no_touch: String = if self.displaying_window{
+            String::new()
+        }else{
+            String::from("touch-action:none;")
+        };
         let doc = document().unchecked_into::<HtmlDocument>();
         let r = doc.query_selector("html, body").unwrap().unwrap();
-        let _ = r.set_attribute("style", &format!("background-color: {};",self.colors[0]));
+        let _ = r.set_attribute("style", &format!("background-color: {}; {}",self.colors[0],do_no_touch));
         let link = ctx.link();
         html!{
             <div class="root" style={format!("--bg-color: {}; --board-bg: {}; --board-outline: {}; --text-color: {}; --accent-target: {}; --Icolor: {}; --Ocolor: {}; --Tcolor:{}; --Lcolor: {}; --Jcolor: {};
-            --Scolor: {}; --Zcolor: {}; --outline-opacity: {}%;",self.colors[0],self.colors[1], self.colors[2],self.colors[3],self.colors[4],self.colors[5],self.colors[6],
-            self.colors[7],self.colors[8],self.colors[9],self.colors[10],self.colors[11],self.colors[12])}>
+            --Scolor: {}; --Zcolor: {}; --outline-opacity: {}%; --piece-outline-target: {};",self.colors[0],self.colors[1], self.colors[2],self.colors[3],self.colors[4],self.colors[5],self.colors[6],
+            self.colors[7],self.colors[8],self.colors[9],self.colors[10],self.colors[11],self.colors[12],self.colors[13])}>
                 <h1>{"Testris"}</h1>
                 // <p>{self.colors[0].clone()}</p>
                 <button class="settings" onclick={link.callback(|_| SettingsMsg::ToggleSettingsWindow)}>
@@ -274,23 +291,39 @@ impl Component for RootComponent{
                                 {"Z tetromino"}
                                 </div>
                             </div>
+                            <div class="color-tab">
+                                <input type="color" value={self.colors[13].clone()} onchange={Self::get_color_callback(link,13)}/>
+                                <div class="color-tab-text" style="color: var(--text-color);">
+                                {"piece outline target"}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="horiz-section">
                     <h1>{"tetromino outline opacity"}</h1>
-                    <div class="text">{"opacity of the outline of tetrominoes"}</div>
+                    <div class="text">{"opacity of the outline of tetrominoes relative to the 'piece outline target' (0 = outlines look exactally like the outline targte, 100 = outline is same color as piece)"}</div>
                     <input name="piece-outline-opacity" type="range" min=0 max=100 value={self.colors[12].clone()} onchange={Self::get_color_callback(link,12)}/>
                     <h2>{format!("{}%",self.colors[12].clone())}</h2>
                     </div>
                     <div class="horiz-section">
                     <h1>{"key held delay"}</h1>
-                    <div class="text">{"The amount of time in milliseconds that a left/right must be held before the piece moves sideways"}</div>
+                    <div class="text">{"The amount of time in milliseconds that a left/right must be held before the piece automatically starts moving sideways while the button remains held."}</div>
                     <input name="key-held-delay" type="number" value={self.game_settings.hold_time.to_string()} onchange={Self::get_settings_callback(link,0)}/>
                     </div>
                     <div class="horiz-section">
                     <h1>{"key held speed"}</h1>
                     <div class="text">{"The time in milliseconds between sideways piece movements when left/right is being held. (changes how fast pieces move side to side when keys are held)"}</div>
                     <input name="key-held-speed" type="number" value={self.game_settings.hold_move_interval.to_string()} onchange={Self::get_settings_callback(link,1)}/>
+                    </div>
+                    <div class="horiz-section">
+                    <h1>{"down key held delay"}</h1>
+                    <div class="text">{"The amount of time in milliseconds that down must be held before the piece automatically starts moving down while the button remains held."}</div>
+                    <input name="key-held-delay" type="number" value={self.game_settings.down_hold_time.to_string()} onchange={Self::get_settings_callback(link,8)}/>
+                    </div>
+                    <div class="horiz-section">
+                    <h1>{"down key held speed"}</h1>
+                    <div class="text">{"The time in milliseconds between downwards piece movement when down is being held. (changes how fast pieces move side to side when keys are held)"}</div>
+                    <input name="key-held-speed" type="number" value={self.game_settings.down_hold_move_interval.to_string()} onchange={Self::get_settings_callback(link,9)}/>
                     </div>
                     <div class="horiz-section">
                     <h1>{"held piece switches"}</h1>
@@ -367,7 +400,7 @@ struct GameProps{
 enum GameMsg {
     Left(InputTypes),
     Right(InputTypes),
-    Down,
+    Down(InputTypes),
     Drop,
     Tick,
     Hold,
@@ -393,7 +426,7 @@ struct GameDisplay{
     game: TetrisBoard,
     ticker_handle: Option<Timeout>,
     move_handle: (bool,Option<Timeout>),
-    down_handle: Option<Timeout>,
+    down_handle: (bool,Option<Timeout>),
     stick_handle: Option<Timeout>,
     level: u32,
     score: u32,
@@ -419,7 +452,7 @@ impl Component for GameDisplay {
         let mut piece_queue: VecDeque<TetrisPieceType> = VecDeque::from_iter(ctx.props().settings.randomizer.make_sequence(7).into_iter());
         let first_piece = piece_queue.pop_front().unwrap_or(TetrisPieceType::I);
         GameDisplay { game: TetrisBoard::make(10,20,first_piece), ticker_handle: None, move_handle: (true,None), 
-            down_handle: None, settings: ctx.props().settings.clone(), level: 1, stick_handle: None, stick_counter: 0, held_piece: None, held_piece_switch_count: 0,
+            down_handle: (true,None), settings: ctx.props().settings.clone(), level: 1, stick_handle: None, stick_counter: 0, held_piece: None, held_piece_switch_count: 0,
             piece_queue, score: 0, lines_cleared: 0, game_end_screen: false,
             touch_start_pos: (0,0), touch_pos: (0,0), touch_translation: 0, touch_velocity: (0,0), touch_can_rotate: true}
     }
@@ -463,9 +496,27 @@ impl Component for GameDisplay {
                     }
                 }
             }
-            GameMsg::Down => {
-                if self.game.move_down(){
-                    self.score+=1;
+            GameMsg::Down(t) => {
+                // if self.game.move_down(){
+                //     self.score+=1;
+                // }
+                if self.down_handle.1.is_none() || t==InputTypes::Hold || self.down_handle.0 && self.down_handle.1.is_some(){
+                    if self.game.move_down(){
+                        self.score+=1;
+                    }
+                    if t!=InputTypes::Touch{
+                        let handle = if t==InputTypes::Hold{
+                            let link = _ctx.link().clone();
+                            Timeout::new(self.settings.hold_move_interval, move || link.send_message(GameMsg::Down(InputTypes::Hold)))
+                        } else {
+                            let link = _ctx.link().clone();
+                            Timeout::new(self.settings.hold_time, move || link.send_message(GameMsg::Down(InputTypes::Hold)))
+                        };
+                        self.down_handle = (false,Some(handle));
+                    }
+                    if self.stick_counter<self.settings.moves_before_lock{
+                        self.stick_handle=None;
+                    }
                 }
             }
             GameMsg::Drop => {
@@ -504,8 +555,8 @@ impl Component for GameDisplay {
                     self.held_piece=None;
                 }
                 if !self.game.move_down(){
-                    self.stick_counter+=1;
                     if self.stick_handle.is_none(){
+                        self.stick_counter+=1;
                         self.stick_handle = Some({
                             let link = _ctx.link().clone();
                             Timeout::new(self.settings.lock_delay, move || link.send_message(GameMsg::Drop))
@@ -542,7 +593,7 @@ impl Component for GameDisplay {
                 }
             }
             GameMsg::CancelDown => {
-
+                if !self.down_handle.0{self.down_handle=(true,None);}
             }
             GameMsg::CancelLeft => {
                 if !self.move_handle.0{self.move_handle=(true,None);}
@@ -569,7 +620,7 @@ impl Component for GameDisplay {
                 //t.prevent_default();
                 let first_touch = t.touches().get(0).unwrap();
                 let pos=(first_touch.client_x(),first_touch.client_y());
-                if pos.0-self.touch_translation>=25 && (pos.1-self.touch_start_pos.1).abs()<self.settings.touch_horiz_sens{
+                if pos.0-self.touch_translation>=self.settings.touch_horiz_sens { // && (pos.1-self.touch_start_pos.1).abs()<self.settings.touch_horiz_sens{
                     self.touch_translation=pos.0;
                     self.touch_can_rotate=false;
                     _ctx.link().send_message(GameMsg::Right(InputTypes::Touch));
@@ -577,7 +628,7 @@ impl Component for GameDisplay {
                     //     let link = _ctx.link().clone();
                     //     Timeout::new(0, move || link.send_message(GameMsg::Right(InputTypes::Touch)))
                     // }.forget();
-                }else if pos.0-self.touch_translation<=-25 && (pos.1-self.touch_start_pos.1).abs()<self.settings.touch_horiz_sens{
+                }else if pos.0-self.touch_translation<=-self.settings.touch_horiz_sens { //&& (pos.1-self.touch_start_pos.1).abs()<self.settings.touch_horiz_sens{
                     self.touch_translation=pos.0;
                     self.touch_can_rotate=false;
                     _ctx.link().send_message(GameMsg::Left(InputTypes::Touch));
@@ -588,7 +639,7 @@ impl Component for GameDisplay {
                 }
                 if pos.1-self.touch_start_pos.1>80{
                     self.touch_can_rotate=false;
-                    _ctx.link().send_message(GameMsg::Down);
+                    _ctx.link().send_message(GameMsg::Down(InputTypes::Touch));
                     // let handle = {
                     //     let link = _ctx.link().clone();
                     //     Timeout::new(0, move || link.send_message(GameMsg::Down))
@@ -635,7 +686,7 @@ impl Component for GameDisplay {
             None => (0.0,0.0)
         };
         html!{
-            <div class="game no-touch-move" tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
+            <div class="game no-touch-move" tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down(InputTypes::Tap), 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
             onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}
             onfocusin={link.callback(|_| GameMsg::Tick)} onfocusout={link.callback(|_| GameMsg::Unfocus)}>
 
@@ -694,6 +745,8 @@ impl GameDisplay{
 struct Settings{
     hold_time: u32,
     hold_move_interval: u32,
+    down_hold_time: u32,
+    down_hold_move_interval: u32,
     max_num_held_piece_switches: u32,
     queue_display_len: usize,
     lock_delay: u32,
@@ -704,7 +757,7 @@ struct Settings{
 impl Default for Settings{
     fn default() -> Settings{
         Settings{hold_time: 150, hold_move_interval: 60, max_num_held_piece_switches: 1, queue_display_len: 4, lock_delay: 500, moves_before_lock: 15, randomizer: Randomizers::RandomGenerator,
-        touch_horiz_sens: 50}
+        touch_horiz_sens: 25, down_hold_time: 50, down_hold_move_interval: 50}
     }
 }
 

@@ -98,43 +98,43 @@ h1 {
 .I-color{
     /* border: 2px solid oklch(from var(--Icolor) calc(l-20) c h); */
     /* border: 2px solid oklch(from var(--Icolor) calc(l-20) c h); */
-    border: 2px solid color-mix(in srgb, var(--Icolor) var(--outline-opacity), var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Icolor) var(--outline-opacity), var(--piece-outline-target));
 }
 .filled.T-color{
     background-color:var(--Tcolor);
 }
 .T-color{
-    border: 2px solid color-mix(in srgb, var(--Tcolor) var(--outline-opacity), var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Tcolor) var(--outline-opacity), var(--piece-outline-target));
 }
 .filled.O-color{
     background-color:var(--Ocolor);
 }
 .O-color{
-    border: 2px solid color-mix(in srgb, var(--Ocolor) var(--outline-opacity), var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Ocolor) var(--outline-opacity), var(--piece-outline-target));
 }
 .filled.S-color{
     background-color:var(--Scolor);
 }
 .S-color{
-    border: 2px solid color-mix(in srgb, var(--Scolor) var(--outline-opacity), var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Scolor) var(--outline-opacity), var(--piece-outline-target));
 }
 .filled.Z-color{
     background-color:var(--Zcolor);
 }
 .Z-color{
-    border: 2px solid color-mix(in srgb, var(--Zcolor) var(--outline-opacity), var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Zcolor) var(--outline-opacity), var(--piece-outline-target));
 }
 .filled.J-color{
     background-color:var(--Jcolor);
 }
 .J-color{
-    border: 2px solid color-mix(in srgb, var(--Jcolor) var(--outline-opacity), var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Jcolor) var(--outline-opacity), var(--piece-outline-target));
 }
 .filled.L-color{
     background-color:var(--Lcolor);
 }
 .L-color{
-    border: 2px solid color-mix(in srgb, var(--Lcolor) var(--outline-opacity), var(--board-outline));
+    border: 2px solid color-mix(in srgb, var(--Lcolor) var(--outline-opacity), var(--piece-outline-target));
 }
 
 .translucent{
