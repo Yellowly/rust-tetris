@@ -704,7 +704,7 @@ async function __wbg_init(input) {
     if (wasm !== undefined) return wasm;
 
     if (typeof input === 'undefined') {
-        input = new URL('rust-tetris-2421084d03df2ff3_bg.wasm', import.meta.url);
+        input = new URL('rust-tetris-705a3f0795149e8e_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
 

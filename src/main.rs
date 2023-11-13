@@ -36,7 +36,7 @@ impl Component for RootComponent{
     fn create(ctx: &Context<Self>) -> Self {
         let get_cookies = document().unchecked_into::<HtmlDocument>().cookie().unwrap_or(String::from("None"));
         let mut colors: Vec<String> = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000")];
+        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000"), String::from("#000000"), String::from("70")];
         let mut game_settings = Settings::default();
         if get_cookies!="None"{
             // colors = Vec::new();
@@ -119,12 +119,12 @@ impl Component for RootComponent{
                 match theme_id {
                     1 => {
                         self.colors = vec![String::from("#2c2a29"),String::from("#353231"),String::from("#222120"),String::from("#cfb24a"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000")];
+                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000"), String::from("#000000"), String::from("70")];
                         self.game_settings = Settings::default();
                     }
                     _ => {
                         self.colors = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000")];
+                        ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000"), String::from("#000000"), String::from("70")];
                         self.game_settings = Settings::default();
                     }
                 }
@@ -132,7 +132,7 @@ impl Component for RootComponent{
             SettingsMsg::Revert => {
                 let get_cookies = document().unchecked_into::<HtmlDocument>().cookie().unwrap_or(String::from("None"));
                 self.colors = vec![String::from("#2c2a29"),String::from("#333333"),String::from("#222222"),String::from("#a7a7a7"),String::from("#ffffff"),String::from("#00ffff"),String::from("#ffff00")
-                ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000")];
+                ,String::from("#ff00ff"),String::from("#ffa500"),String::from("#0000ff"),String::from("#ff0000"),String::from("#00ff00"), String::from("70"), String::from("#000000"), String::from("#000000"), String::from("70")];
                 self.game_settings = Settings::default();
                 if get_cookies!="None"{
                     // colors = Vec::new();
@@ -201,8 +201,8 @@ impl Component for RootComponent{
         let link = ctx.link();
         html!{
             <div class="root" style={format!("--bg-color: {}; --board-bg: {}; --board-outline: {}; --text-color: {}; --accent-target: {}; --Icolor: {}; --Ocolor: {}; --Tcolor:{}; --Lcolor: {}; --Jcolor: {};
-            --Scolor: {}; --Zcolor: {}; --outline-opacity: {}%; --piece-outline-target: {};",self.colors[0],self.colors[1], self.colors[2],self.colors[3],self.colors[4],self.colors[5],self.colors[6],
-            self.colors[7],self.colors[8],self.colors[9],self.colors[10],self.colors[11],self.colors[12],self.colors[13])}>
+            --Scolor: {}; --Zcolor: {}; --outline-opacity: {}%; --piece-outline-target: {}; --drop-outline-target: {}; --drop-outline-opacity: {}%;",self.colors[0],self.colors[1], self.colors[2],self.colors[3],self.colors[4],self.colors[5],self.colors[6],
+            self.colors[7],self.colors[8],self.colors[9],self.colors[10],self.colors[11],self.colors[12],self.colors[13],self.colors[14],self.colors[15])}>
                 <h1>{"Testris"}</h1>
                 // <p>{self.colors[0].clone()}</p>
                 <button class="settings" onclick={link.callback(|_| SettingsMsg::ToggleSettingsWindow)}>
@@ -297,13 +297,25 @@ impl Component for RootComponent{
                                 {"piece outline target"}
                                 </div>
                             </div>
+                            <div class="color-tab">
+                                <input type="color" value={self.colors[14].clone()} onchange={Self::get_color_callback(link,14)}/>
+                                <div class="color-tab-text" style="color: var(--text-color);">
+                                {"drop outline target"}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="horiz-section">
                     <h1>{"tetromino outline opacity"}</h1>
-                    <div class="text">{"opacity of the outline of tetrominoes relative to the 'piece outline target' (0 = outlines look exactally like the outline targte, 100 = outline is same color as piece)"}</div>
+                    <div class="text">{"opacity of the outline of tetrominoes relative to the 'piece outline target' (0 = outlines look exactally like the outline target, 100 = outline is same color as piece)"}</div>
                     <input name="piece-outline-opacity" type="range" min=0 max=100 value={self.colors[12].clone()} onchange={Self::get_color_callback(link,12)}/>
                     <h2>{format!("{}%",self.colors[12].clone())}</h2>
+                    </div>
+                    <div class="horiz-section">
+                    <h1>{"drop outline opacity"}</h1>
+                    <div class="text">{"opacity of the outline of drop location indicator relative to the 'drop outline target' setting (0 = drop indicator outlines are the same color as 'drop outline target', 100 = drop indicator outlines are the same color as the tetrominoes)"}</div>
+                    <input name="piece-outline-opacity" type="range" min=0 max=100 value={self.colors[15].clone()} onchange={Self::get_color_callback(link,15)}/>
+                    <h2>{format!("{}%",self.colors[15].clone())}</h2>
                     </div>
                     <div class="horiz-section">
                     <h1>{"key held delay"}</h1>
@@ -385,10 +397,10 @@ impl Component for RootComponent{
 }
 impl RootComponent{
     fn get_color_callback(link: &yew::html::Scope<Self>, val: usize) -> yew::Callback<Event>{
-        return {link.callback(move |e: Event| {let input: HtmlInputElement = e.target_unchecked_into(); SettingsMsg::ChangeColor(input.value().parse::<String>().unwrap(),val)})}
+        return link.callback(move |e: Event| {let input: HtmlInputElement = e.target_unchecked_into(); SettingsMsg::ChangeColor(input.value().parse::<String>().unwrap(),val)})
     }
     fn get_settings_callback(link: &yew::html::Scope<Self>, val: u32) -> yew::Callback<Event>{
-        return {link.callback(move |e: Event| {let input: HtmlInputElement = e.target_unchecked_into(); SettingsMsg::ChangeSettings(input.value().parse::<String>().unwrap(),val)})}
+        return link.callback(move |e: Event| {let input: HtmlInputElement = e.target_unchecked_into(); SettingsMsg::ChangeSettings(input.value().parse::<String>().unwrap(),val)})
     }
 }
 
@@ -526,6 +538,11 @@ impl Component for GameDisplay {
                     // reset game
                     self.game_end_screen = true;
                     self.ticker_handle=None;
+                    let doc = document().unchecked_into::<HtmlDocument>();
+                    let curr_cookies = doc.cookie().unwrap_or(String::from("None"));
+                    if curr_cookies.len()>8{
+                        let _ = doc.set_cookie(&format!("highscore={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.score));
+                    }
                     return true
                     // self.game = TetrisBoard::make(10,20,TetrisPieceType::get_random());
                     // self.ticker_handle=None;
@@ -1151,7 +1168,7 @@ impl TetrisBoard{
                                         }else if self.check_loc_for_falling_piece(c+r*self.dimentions.0){
                                             <span class={format!("tile filled {}-color",self.falling_piece)}/>
                                         }else if self.check_drop_loc(c+r*self.dimentions.0){
-                                            <span class={format!("tile outline {}-color",self.falling_piece)}/>
+                                            <span class={format!("tile outline drop-indicator {}-color",self.falling_piece)}/>
                                         }else{
                                             <span class="tile empty"/>
                                         }

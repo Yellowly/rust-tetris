@@ -92,49 +92,56 @@ h1 {
     border: 2px solid oklch(from blue calc(l-20) c h);
 }
 
-.filled.I-color{
-    background-color:var(--Icolor);
-}
 .I-color{
     /* border: 2px solid oklch(from var(--Icolor) calc(l-20) c h); */
     /* border: 2px solid oklch(from var(--Icolor) calc(l-20) c h); */
+    background-color:var(--Icolor);
     border: 2px solid color-mix(in srgb, var(--Icolor) var(--outline-opacity), var(--piece-outline-target));
 }
-.filled.T-color{
-    background-color:var(--Tcolor);
+.drop-indicator.I-color{
+    border: 2px solid color-mix(in srgb, var(--Icolor) var(--drop-outline-opacity), var(--drop-outline-target));
 }
 .T-color{
+    background-color:var(--Tcolor);
     border: 2px solid color-mix(in srgb, var(--Tcolor) var(--outline-opacity), var(--piece-outline-target));
 }
-.filled.O-color{
-    background-color:var(--Ocolor);
+.drop-indicator.T-color{
+    border: 2px solid color-mix(in srgb, var(--Tcolor) var(--drop-outline-opacity), var(--drop-outline-target));
 }
 .O-color{
+    background-color:var(--Ocolor);
     border: 2px solid color-mix(in srgb, var(--Ocolor) var(--outline-opacity), var(--piece-outline-target));
 }
-.filled.S-color{
-    background-color:var(--Scolor);
+.drop-indicator.O-color{
+    border: 2px solid color-mix(in srgb, var(--Ocolor) var(--drop-outline-opacity), var(--drop-outline-target));
 }
 .S-color{
+    background-color:var(--Scolor);
     border: 2px solid color-mix(in srgb, var(--Scolor) var(--outline-opacity), var(--piece-outline-target));
 }
-.filled.Z-color{
-    background-color:var(--Zcolor);
+.drop-indicator.S-color{
+    border: 2px solid color-mix(in srgb, var(--Scolor) var(--drop-outline-opacity), var(--drop-outline-target));
 }
 .Z-color{
+    background-color:var(--Zcolor);
     border: 2px solid color-mix(in srgb, var(--Zcolor) var(--outline-opacity), var(--piece-outline-target));
 }
-.filled.J-color{
-    background-color:var(--Jcolor);
+.drop-indicator.Z-color{
+    border: 2px solid color-mix(in srgb, var(--Zcolor) var(--drop-outline-opacity), var(--drop-outline-target));
 }
 .J-color{
+    background-color:var(--Jcolor);
     border: 2px solid color-mix(in srgb, var(--Jcolor) var(--outline-opacity), var(--piece-outline-target));
 }
-.filled.L-color{
-    background-color:var(--Lcolor);
+.drop-indicator.J-color{
+    border: 2px solid color-mix(in srgb, var(--Jcolor) var(--drop-outline-opacity), var(--drop-outline-target));
 }
 .L-color{
+    background-color:var(--Lcolor);
     border: 2px solid color-mix(in srgb, var(--Lcolor) var(--outline-opacity), var(--piece-outline-target));
+}
+.drop-indicator.L-color{
+    border: 2px solid color-mix(in srgb, var(--Lcolor) var(--drop-outline-opacity), var(--drop-outline-target));
 }
 
 .translucent{
