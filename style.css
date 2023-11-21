@@ -30,7 +30,7 @@ body {
 
 :root{
     --block-dim: min(calc(100vh/30),calc(100vw/20));
-    --side-block-dim: min(var(--block-dim),calc(100vw/32));
+    --side-block-dim: min(var(--block-dim),calc(100vw/36));
     /* --color: grey; */
 }
 

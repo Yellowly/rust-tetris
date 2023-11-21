@@ -541,7 +541,14 @@ impl Component for GameDisplay {
                     let doc = document().unchecked_into::<HtmlDocument>();
                     let curr_cookies = doc.cookie().unwrap_or(String::from("None"));
                     if curr_cookies.len()>8{
-                        let _ = doc.set_cookie(&format!("highscore={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.score));
+                        if curr_cookies.contains("highscore"){
+                            let prev_highscore = curr_cookies.split_once("highscore=").unwrap_or(("","0")).1.split_once(";").unwrap_or(("0","")).0.parse::<u32>().unwrap_or(0);
+                            if self.score>prev_highscore{
+                                let _ = doc.set_cookie(&format!("highscore={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.score));
+                            }
+                        }else{
+                            let _ = doc.set_cookie(&format!("highscore={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.score));
+                        }
                     }
                     return true
                     // self.game = TetrisBoard::make(10,20,TetrisPieceType::get_random());
