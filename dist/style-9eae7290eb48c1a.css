@@ -194,7 +194,13 @@ h1 {
     outline:none;
 }
 
-button.settings{
+button.window-button{
+    font-family:monospace;
+    font-size:larger;
+    margin-left:4px;
+}
+
+.windows-buttons{
     position:absolute;
     top:2px;
     right:2px;
@@ -490,4 +496,11 @@ div.text{
     font-family: monospace;
     margin:4px;
     font-size:1em;
+}
+
+.highscore-list-item{
+    font-family: monospace;
+    font-size:2em;
+    color: var(--text-color);
+    margin:8px;
 }

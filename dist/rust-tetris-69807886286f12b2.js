@@ -656,12 +656,12 @@ function __wbg_get_imports() {
         const ret = wasm.memory;
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper1548 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 196, __wbg_adapter_28);
+    imports.wbg.__wbindgen_closure_wrapper1730 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 197, __wbg_adapter_28);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper2826 = function(arg0, arg1, arg2) {
-        const ret = makeClosure(arg0, arg1, 276, __wbg_adapter_31);
+    imports.wbg.__wbindgen_closure_wrapper3021 = function(arg0, arg1, arg2) {
+        const ret = makeClosure(arg0, arg1, 277, __wbg_adapter_31);
         return addHeapObject(ret);
     };
 
@@ -704,7 +704,7 @@ async function __wbg_init(input) {
     if (wasm !== undefined) return wasm;
 
     if (typeof input === 'undefined') {
-        input = new URL('rust-tetris-da648746730efacc_bg.wasm', import.meta.url);
+        input = new URL('rust-tetris-69807886286f12b2_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
 

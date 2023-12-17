@@ -13,7 +13,7 @@ fn main() {
 }
 
 enum SettingsMsg{
-    ToggleSettingsWindow,
+    ChangeWindow(Windows),
     ChangeColor(String, usize),
     ChangeSettings(String, u32),
     SetTheme(u32),
@@ -21,10 +21,18 @@ enum SettingsMsg{
     SaveCookies(bool),
 }
 
+#[derive(PartialEq)]
+enum Windows{
+    Game,
+    Settings,
+    Highscores
+}
+
 struct RootComponent{
     game_settings: Settings,
-    displaying_window: bool,
+    displaying_window: Windows,
     colors: Vec<String>,
+    highscores: Vec<u32>,
     cookie_notif: bool,
     cookies: String
 }
@@ -66,14 +74,17 @@ impl Component for RootComponent{
                 }
             }
         }
-        Self{game_settings: Settings::default(), displaying_window: false, colors, cookies: get_cookies, cookie_notif: false}
+        Self{game_settings: Settings::default(), displaying_window: Windows::Game, colors, highscores: Self::get_highscores().unwrap_or_default(), cookies: get_cookies, cookie_notif: false}
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg{
-            SettingsMsg::ToggleSettingsWindow => {
+            SettingsMsg::ChangeWindow(w) => {
                 self.cookie_notif=false;
-                self.displaying_window = !self.displaying_window;
+                if w==Windows::Highscores{
+                    self.highscores=Self::get_highscores().unwrap_or_default();
+                }
+                self.displaying_window = w;
             }
             SettingsMsg::ChangeColor(color, id) => {
                 self.colors[id]=color;
@@ -190,10 +201,10 @@ impl Component for RootComponent{
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let do_no_touch: String = if self.displaying_window{
-            String::new()
-        }else{
+        let do_no_touch: String = if self.displaying_window==Windows::Game{
             String::from("touch-action:none;")
+        }else{
+            String::new()
         };
         let doc = document().unchecked_into::<HtmlDocument>();
         let r = doc.query_selector("html, body").unwrap().unwrap();
@@ -205,11 +216,19 @@ impl Component for RootComponent{
             self.colors[7],self.colors[8],self.colors[9],self.colors[10],self.colors[11],self.colors[12],self.colors[13],self.colors[14],self.colors[15])}>
                 <h1>{"Testris"}</h1>
                 // <p>{self.colors[0].clone()}</p>
-                <button class="settings" onclick={link.callback(|_| SettingsMsg::ToggleSettingsWindow)}>
-                {"settings"}
-                </button>
+                <div class="windows-buttons">
+                    <button class="window-button" onclick={link.callback(|_| SettingsMsg::ChangeWindow(Windows::Game))}>
+                    {"🕹️"}
+                    </button>
+                    <button class="window-button" onclick={link.callback(|_| SettingsMsg::ChangeWindow(Windows::Highscores))}>
+                    {"🏆"}
+                    </button>
+                    <button class="window-button" onclick={link.callback(|_| SettingsMsg::ChangeWindow(Windows::Settings))}>
+                    {"⚙️"}
+                    </button>
+                </div>
                 <hr/>
-                if self.displaying_window{
+                if self.displaying_window==Windows::Settings{
                     <div class="settings-window">
                     <div class="colors-section">
                     <h1>{"website colors"}</h1>
@@ -378,17 +397,27 @@ impl Component for RootComponent{
                         <button onclick={link.callback(|_| SettingsMsg::SaveCookies(false))}>{"save"}</button>
                     </div>
                     <p>{self.cookies.clone()}</p>
+                    <p>{Self::get_highscores().unwrap().len()}</p>    
+                    <p>{Self::get_highscores().unwrap().iter().map(|v| v.to_string()).collect::<Vec<String>>().join(",")}</p>
                     </div>
                     if self.cookie_notif{
                         <div class="cookie-menu">
                             <p>{"Cookies are used to save your preferences. Without cookies, you can still modify your preferences, but they will not be saved once you close this tab."}</p>
-                            <button onclick={link.callback(|_| SettingsMsg::ToggleSettingsWindow)}>{"Reject"}</button>
+                            <button onclick={link.callback(|_| SettingsMsg::ChangeWindow(Windows::Settings))}>{"Reject"}</button>
                             <button onclick={link.callback(|_| SettingsMsg::SaveCookies(true))}>{"Accept"}</button>
                         </div>
                     }
-                }
-                // <div class="notouch"></div>
-                else{
+                }else if self.displaying_window==Windows::Highscores{
+                    {
+                        self.highscores.iter().enumerate().map(|(i,h)| {
+                            html!{
+                                <div class="highscore-list-item">
+                                    {h.to_string()}
+                                </div>
+                            }
+                        }).collect::<Html>()
+                    }
+                }else{
                 <GameDisplay settings={self.game_settings.clone()}/>
                 }
             </div>
@@ -401,6 +430,49 @@ impl RootComponent{
     }
     fn get_settings_callback(link: &yew::html::Scope<Self>, val: u32) -> yew::Callback<Event>{
         return link.callback(move |e: Event| {let input: HtmlInputElement = e.target_unchecked_into(); SettingsMsg::ChangeSettings(input.value().parse::<String>().unwrap(),val)})
+    }
+    fn get_highscores() -> core::result::Result<Vec<u32>,String>{
+        let doc = document().unchecked_into::<HtmlDocument>();
+        let curr_cookies = doc.cookie().unwrap_or(String::from("None"));
+        if curr_cookies.len()>8{
+            if curr_cookies.contains("highscore"){
+                let after_hs = String::from(curr_cookies.split_once("highscore=").unwrap_or(("","0")).1);
+                if after_hs.contains(";"){
+                    return Ok(String::from(curr_cookies.split_once("highscore=").unwrap_or(("","0")).1.split_once(";").unwrap_or(("0","")).0).split(",").map(|v| v.parse::<u32>().unwrap_or(0)).collect());
+                }else{
+                    return Ok(String::from(curr_cookies.split_once("highscore=").unwrap_or(("","0")).1).split(",").map(|v| v.parse::<u32>().unwrap_or(0)).collect());
+                }
+            }
+            return Err(String::from("Highscore cookie does not exist"))
+        }
+        return Err(String::from("Cookies not enabled"))
+    }
+    fn add_highscore(h: u32){
+        let doc = document().unchecked_into::<HtmlDocument>();
+        match Self::get_highscores(){
+            Ok(hs) => {
+                if hs.len()<8{
+                    let mut cloned=hs.clone();
+                    if cloned[0]==0 {cloned.remove(0);}
+                    let pos = cloned.binary_search(&h).unwrap_or_else(|e| e);
+                    cloned.insert(pos, h);
+                    let _ = doc.set_cookie(&format!("highscore={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",cloned.iter().map(|v| v.to_string()).collect::<Vec<String>>().join(",")));
+                }else{
+                    let mut cloned: Vec<u32> = hs.clone();
+                    if cloned[0]==0 {cloned.remove(0);}
+                    let min: u32 = cloned.pop().unwrap_or_default();
+                    if min>h{
+                        cloned.push(min);
+                    }else{
+                        let pos = cloned.binary_search(&h).unwrap_or_else(|e| e);
+                        cloned.insert(pos, h);
+                    }
+                    let _ = doc.set_cookie(&format!("highscore={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",cloned.iter().map(|v| v.to_string()).collect::<Vec<String>>().join(",")));
+                };
+            },
+            Err(s) => if s=="Highscore cookie does not exist" {let _ = doc.set_cookie(&format!("highscore={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",h));},
+        }
+        
     }
 }
 
@@ -472,6 +544,9 @@ impl Component for GameDisplay {
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             GameMsg::Left(t) => {
+                if self.ticker_handle.is_none(){
+                    _ctx.link().send_message(GameMsg::Tick);
+                }
                 if self.move_handle.1.is_none() || t==InputTypes::Hold || self.move_handle.0 && self.move_handle.1.is_some(){
                     self.game.move_left();
                     if t!=InputTypes::Touch{
@@ -490,6 +565,9 @@ impl Component for GameDisplay {
                 }
             }
             GameMsg::Right(t) => {
+                if self.ticker_handle.is_none(){
+                    _ctx.link().send_message(GameMsg::Tick);
+                }
                 if self.move_handle.1.is_none() || t==InputTypes::Hold || !self.move_handle.0 && self.move_handle.1.is_some(){
                     self.game.move_right();
                     if t!=InputTypes::Touch{
@@ -512,6 +590,9 @@ impl Component for GameDisplay {
                 // if self.game.move_down(){
                 //     self.score+=1;
                 // }
+                if self.ticker_handle.is_none(){
+                    _ctx.link().send_message(GameMsg::Tick);
+                }
                 if self.down_handle.1.is_none() || t==InputTypes::Hold || self.down_handle.0 && self.down_handle.1.is_some(){
                     if self.game.move_down(){
                         self.score+=1;
@@ -532,31 +613,17 @@ impl Component for GameDisplay {
                 }
             }
             GameMsg::Drop => {
+                if self.ticker_handle.is_none(){
+                    _ctx.link().send_message(GameMsg::Tick);
+                }
                 if self.game_end_screen {return false}
                 self.score += self.game.drop()*2;
                 if !self.game.new_falling_piece(self.piece_queue.pop_front().unwrap_or(TetrisPieceType::I)){
                     // reset game
                     self.game_end_screen = true;
                     self.ticker_handle=None;
-                    let doc = document().unchecked_into::<HtmlDocument>();
-                    let curr_cookies = doc.cookie().unwrap_or(String::from("None"));
-                    if curr_cookies.len()>8{
-                        if curr_cookies.contains("highscore"){
-                            let prev_highscore = curr_cookies.split_once("highscore=").unwrap_or(("","0")).1.split_once(";").unwrap_or(("0","")).0.parse::<u32>().unwrap_or(0);
-                            if self.score>prev_highscore{
-                                let _ = doc.set_cookie(&format!("highscore={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.score));
-                            }
-                        }else{
-                            let _ = doc.set_cookie(&format!("highscore={}; expires=Tue, 19 Jan 2038 03:14:07 UTC;",self.score));
-                        }
-                    }
+                    RootComponent::add_highscore(self.score);
                     return true
-                    // self.game = TetrisBoard::make(10,20,TetrisPieceType::get_random());
-                    // self.ticker_handle=None;
-                    // self.level = 1;
-                    // self.score = 0;
-                    // self.lines_cleared=0;
-                    // self.held_piece=None;
                 }
                 if self.piece_queue.len()<=self.settings.queue_display_len{ self.piece_queue.extend(self.settings.randomizer.make_sequence(self.settings.queue_display_len))}
                 // self.piece_queue.push_back(TetrisPieceType::get_random());
@@ -594,6 +661,9 @@ impl Component for GameDisplay {
                 self.ticker_handle=Some(handle);
             }
             GameMsg::Hold => {
+                if self.ticker_handle.is_none(){
+                    _ctx.link().send_message(GameMsg::Tick);
+                }
                 if self.game_end_screen {return true}
                 self.held_piece_switch_count+=1;
                 if self.held_piece_switch_count>self.settings.max_num_held_piece_switches{
@@ -611,6 +681,9 @@ impl Component for GameDisplay {
                 self.stick_handle=None;
             }
             GameMsg::Rotate => {
+                if self.ticker_handle.is_none(){
+                    _ctx.link().send_message(GameMsg::Tick);
+                }
                 self.game.rotate_clockwise();
                 if self.stick_counter<self.settings.moves_before_lock{
                     self.stick_handle=None;
@@ -626,14 +699,8 @@ impl Component for GameDisplay {
                 if self.move_handle.0{self.move_handle=(true,None);}
             }
             GameMsg::TouchStart(t) => {
-                //t.prevent_default();
-                // _ctx.link().send_message(GameMsg::Tick);
                 if self.ticker_handle.is_none(){
                     _ctx.link().send_message(GameMsg::Tick);
-                    // {
-                    //     let link = _ctx.link().clone();
-                    //     Timeout::new(0, move || link.send_message(GameMsg::Tick))
-                    // }.forget();
                 }
                 let first_touch = t.touches().get(0).unwrap();
                 self.touch_start_pos=(first_touch.client_x(),first_touch.client_y());
@@ -641,33 +708,20 @@ impl Component for GameDisplay {
                 self.touch_translation=self.touch_start_pos.0;
             }
             GameMsg::TouchMove(t) => {
-                //t.prevent_default();
                 let first_touch = t.touches().get(0).unwrap();
                 let pos=(first_touch.client_x(),first_touch.client_y());
                 if pos.0-self.touch_translation>=self.settings.touch_horiz_sens { // && (pos.1-self.touch_start_pos.1).abs()<self.settings.touch_horiz_sens{
                     self.touch_translation=pos.0;
                     self.touch_can_rotate=false;
                     _ctx.link().send_message(GameMsg::Right(InputTypes::Touch));
-                    // let handle = {
-                    //     let link = _ctx.link().clone();
-                    //     Timeout::new(0, move || link.send_message(GameMsg::Right(InputTypes::Touch)))
-                    // }.forget();
                 }else if pos.0-self.touch_translation<=-self.settings.touch_horiz_sens { //&& (pos.1-self.touch_start_pos.1).abs()<self.settings.touch_horiz_sens{
                     self.touch_translation=pos.0;
                     self.touch_can_rotate=false;
                     _ctx.link().send_message(GameMsg::Left(InputTypes::Touch));
-                    // let handle = {
-                    //     let link = _ctx.link().clone();
-                    //     Timeout::new(0, move || link.send_message(GameMsg::Left(InputTypes::Touch)))
-                    // }.forget();
                 }
                 if pos.1-self.touch_start_pos.1>80{
                     self.touch_can_rotate=false;
                     _ctx.link().send_message(GameMsg::Down(InputTypes::Touch));
-                    // let handle = {
-                    //     let link = _ctx.link().clone();
-                    //     Timeout::new(0, move || link.send_message(GameMsg::Down))
-                    // }.forget();
                 }
                 self.touch_pos=pos;
             }
@@ -711,15 +765,8 @@ impl Component for GameDisplay {
         };
         html!{
             <div class="game no-touch-move" tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down(InputTypes::Tap), 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
-            onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}
-            onfocusin={link.callback(|_| GameMsg::Tick)} onfocusout={link.callback(|_| GameMsg::Unfocus)}>
-
-                // <div class="notouch" tabindex=0 onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(InputTypes::Tap), 38=>GameMsg::Rotate, 37=>GameMsg::Left(InputTypes::Tap), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
-                // onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}
-                // ontouchstart={link.callback(|t:TouchEvent| GameMsg::TouchStart(t))} ontouchmove={link.callback(|t| GameMsg::TouchMove(t))} ontouchend={link.callback(|t| GameMsg::TouchEnd(t))}></div>
-                // <h1>{"test"}</h1>
-                // <button class="start-button" onclick={link.callback(|_| GameMsg::Tick)} onkeydown={link.callback(|key:KeyboardEvent| {match key.key_code(){67=>GameMsg::Hold,40=>GameMsg::Down, 39=>GameMsg::Right(false), 38=>GameMsg::Rotate, 37=>GameMsg::Left(false), 32 =>GameMsg::Drop,_=>GameMsg::None}})}
-                // onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, _=>GameMsg::None}})}/>
+            onkeyup={link.callback(|key:KeyboardEvent| {match key.key_code(){40=>GameMsg::CancelDown, 39=>GameMsg::CancelRight, 37=>GameMsg::CancelLeft, 27=>GameMsg::Unfocus, _=>GameMsg::None}})}
+            onfocusout={link.callback(|_| GameMsg::Unfocus)}> //onfocusin={link.callback(|_| GameMsg::Tick)} 
                 <div class="inline-block" onclick={link.callback(|_| GameMsg::Hold)}>
                     {TetrisPieceType::view(&self.held_piece)}
                     <div class="sidebar-num-display">
@@ -730,10 +777,6 @@ impl Component for GameDisplay {
                     <h1>{"Level"}</h1>
                     <p>{self.level.to_string()}</p>
                     </div>
-                    // <p>{format!("start: {},{}",self.touch_start_pos.0,self.touch_start_pos.1)}</p>
-                    // <p>{format!("curr: {},{}",self.touch_pos.0,self.touch_pos.1)}</p>
-                    // <p>{format!("{}",self.piece_queue.len())}</p>
-                    // <p>{format!("w{},h{}",dim.0,dim.1)}</p>
                 </div>
                 <div class="inline-block" ontouchstart={link.callback(|t:TouchEvent| GameMsg::TouchStart(t))} ontouchmove={link.callback(|t| GameMsg::TouchMove(t))} ontouchend={link.callback(|t| GameMsg::TouchEnd(t))}>
                     {self.game.view()}
